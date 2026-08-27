@@ -1,0 +1,23 @@
+[package]
+name = "preconfs-example"
+version = "0.1.0"
+edition = { workspace = true }
+repository = { workspace = true }
+publish = false
+
+[[bin]]
+name = "preconfs-subscribe"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+solana-pubkey = { workspace = true }
+solana-signature = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+triton-preconfs-client = { workspace = true }

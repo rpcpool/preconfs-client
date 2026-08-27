@@ -1,0 +1,19 @@
+[package]
+name = "triton-preconfs-proto"
+version = "0.1.0"
+edition = { workspace = true }
+repository = { workspace = true }
+description = "Triton Preconfs gRPC protobuf definitions"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+prost = { workspace = true }
+tonic = { workspace = true }
+tonic-prost = { workspace = true }
+
+[build-dependencies]
+protoc-bin-vendored = { workspace = true }
+tonic-prost-build = { workspace = true }

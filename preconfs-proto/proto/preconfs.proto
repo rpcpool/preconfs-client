@@ -1,0 +1,240 @@
+syntax = "proto3";
+
+package preconfs;
+
+// One Subscribe service per upstream feed. Authorization is per service: an
+// x-token is entitled to /preconfs.Harmonic/Subscribe, /preconfs.BAM/Subscribe,
+// or both. Filters are shared; update payloads are feed-specific because the
+// upstreams expose different metadata.
+//
+// Delivery contract:
+// - The server never silently drops matching transactions. If a subscriber
+//   cannot keep up (or the server falls behind), the stream is CLOSED with an
+//   explicit error status. The only other way a matching transaction is not
+//   delivered is coverage enforcement, which is always announced with a
+//   CoverageClip. An open stream is therefore complete with respect to the
+//   subscribed filters, minus what CoverageClip notices account for.
+// - Transactions for a slot are delivered between that slot's SlotStart and
+//   SlotEnd, in upstream order. Any pending CoverageClip is delivered before
+//   SlotEnd, so after SlotEnd for slot N from a source a subscriber holds
+//   everything its filters matched for that slot, or a notice saying what
+//   was withheld.
+// - Slot restarts: rarely (observed ~0.25% of slots) a forking leader restarts
+//   a slot, producing a second SlotStart for an already-ended slot, followed
+//   by the slot's definitive transactions and a new SlotEnd. On a repeated
+//   SlotStart, discard prior state held for that slot and rebuild from the
+//   new frame; the last SlotEnd wins.
+// - Slot boundaries are scoped to the stream's region like transactions;
+//   within that region they are delivered regardless of transaction filters.
+// - Sources (regions/nodes) are independent; slot boundaries are ordered per
+//   source, not across sources.
+//
+// Updates carry no signature field: the signature is the first 64 bytes after
+// the length prefix inside `transaction` and would be redundant on the wire.
+
+service Harmonic {
+  rpc Subscribe(SubscribeRequest) returns (stream HarmonicUpdate);
+  rpc GetVersion(VersionRequest) returns (VersionResponse);
+}
+
+service BAM {
+  rpc Subscribe(SubscribeRequest) returns (stream BamUpdate);
+  rpc GetVersion(VersionRequest) returns (VersionResponse);
+}
+
+message SubscribeRequest {
+  // Named filters. A transaction is delivered if it matches at least one
+  // filter; the names of all matching filters are echoed in the update.
+  //
+  // Full-feed subscriptions are not allowed: every filter must positively
+  // select transactions via account_include, account_required, or signature.
+  map<string, TransactionFilter> transactions = 1;
+  // Region the stream serves, typed per feed and REQUIRED: one stream
+  // serves exactly one region, open one stream per region for more. The
+  // Harmonic service rejects bam_region and vice versa; UNSPECIFIED is
+  // rejected. Regions not served by the deployment are rejected with the
+  // served list.
+  oneof region {
+    HarmonicRegion harmonic_region = 2;
+    BamRegion bam_region = 3;
+  }
+}
+
+enum HarmonicRegion {
+  HARMONIC_REGION_UNSPECIFIED = 0;
+  HARMONIC_REGION_AMS = 1;
+  HARMONIC_REGION_EWR = 2;
+  HARMONIC_REGION_FRA = 3;
+  HARMONIC_REGION_LON = 4;
+  HARMONIC_REGION_TYO = 5;
+  HARMONIC_REGION_SGP = 6;
+  HARMONIC_REGION_SLC = 7;
+}
+
+enum BamRegion {
+  BAM_REGION_UNSPECIFIED = 0;
+  BAM_REGION_AMS = 1;
+  BAM_REGION_DFW = 2;
+  BAM_REGION_DUB = 3;
+  BAM_REGION_EWR = 4;
+  BAM_REGION_FRA = 5;
+  BAM_REGION_HKG = 6;
+  BAM_REGION_IAD = 7;
+  BAM_REGION_LAX = 8;
+  BAM_REGION_LON = 9;
+  BAM_REGION_PIT = 10;
+  BAM_REGION_SEA = 11;
+  BAM_REGION_SIN = 12;
+  BAM_REGION_SLC = 13;
+  BAM_REGION_SQQ = 14;
+  BAM_REGION_TYO = 15;
+}
+
+message VersionRequest {}
+
+message VersionResponse {
+  // Server version (crate semver).
+  string version = 1;
+  // Region this server instance runs in; with the anycast entry point this
+  // tells the client where it actually landed.
+  string region = 2;
+}
+
+message TransactionFilter {
+  // No account_exclude by design: filters are positive selections only.
+  reserved 2;
+  reserved "account_exclude";
+
+  // Match if ANY of these accounts is in the transaction's static account keys.
+  repeated string account_include = 1;
+  // Match only if ALL of these accounts are in the transaction's static account keys.
+  repeated string account_required = 3;
+  // Match if the transaction signature equals ANY of these (base58).
+  repeated string signature = 4;
+  // Restrict to these execution results; empty means all results. Cannot be
+  // the only constraint. Harmonic only: the BAM upstream does not report
+  // execution outcomes, so setting this on the BAM feed rejects the subscribe.
+  repeated ExecutionResult execution_results = 5;
+}
+
+// The committed outcome of a transaction observed by the builder.
+enum ExecutionResult {
+  // Loaded and executed cleanly; committed with state applied.
+  EXECUTION_RESULT_SUCCESS = 0;
+  // Loaded and executed, but an instruction errored.
+  // Committed, fees charged, and compute units consumed, but state reverted.
+  EXECUTION_RESULT_EXECUTION_FAILURE = 1;
+  // Failed to load; committed fee-only, never executed.
+  EXECUTION_RESULT_FEES_ONLY = 2;
+}
+
+// A leader began streaming preconfs for this slot in `region`.
+message HarmonicSlotStart {
+  uint64 slot = 1;
+  // Same value as HarmonicTransaction.region.
+  string region = 2;
+}
+
+// No further transactions for this slot will arrive from `region`.
+message HarmonicSlotEnd {
+  uint64 slot = 1;
+  // Same value as HarmonicTransaction.region.
+  string region = 2;
+}
+
+message HarmonicUpdate {
+  // Names of the request filters this update matched; empty for slot
+  // boundaries and pings.
+  repeated string filters = 1;
+  oneof payload {
+    HarmonicTransaction transaction = 2;
+    Ping ping = 3;
+    HarmonicSlotStart slot_start = 4;
+    HarmonicSlotEnd slot_end = 5;
+    CoverageClip clip = 6;
+  }
+}
+
+message HarmonicTransaction {
+  // Raw transaction bytes as received from the Harmonic firehose.
+  bytes transaction = 1;
+  // Slot the transaction was preconfirmed in.
+  uint64 slot = 2;
+  // Committed outcome observed by the builder.
+  ExecutionResult result = 3;
+  // Harmonic region the transaction was received from.
+  string region = 4;
+  // Preconf batch this transaction arrived in. Per the Harmonic team, a batch
+  // is a throughput coalesce window on the way to the validator (pre
+  // execution, raw transactions); it has no correspondence to entries or FEC
+  // sets. Batches are numbered contiguously from 0 within each slot and
+  // delivered in order; the validator executes in parallel with an end state
+  // equivalent to serial execution in this order.
+  uint64 seq = 5;
+}
+
+// A leader began streaming preconfs for this slot via `node`. Emitted once
+// the BAM upstream ships block framing; the upstream plans to carry the
+// validator identity here as well.
+message BamSlotStart {
+  uint64 slot = 1;
+  // Same value as BamTransaction.node.
+  string node = 2;
+}
+
+// No further transactions for this slot will arrive from `node`.
+message BamSlotEnd {
+  uint64 slot = 1;
+  // Same value as BamTransaction.node.
+  string node = 2;
+}
+
+message BamUpdate {
+  // Names of the request filters this update matched; empty for slot
+  // boundaries and pings.
+  repeated string filters = 1;
+  oneof payload {
+    BamTransaction transaction = 2;
+    Ping ping = 3;
+    BamSlotStart slot_start = 4;
+    BamSlotEnd slot_end = 5;
+    CoverageClip clip = 6;
+  }
+}
+
+// The BAM upstream schema is still in flux (block framing being added,
+// per-transaction fields being trimmed); expect additions here.
+//
+// BAM does not report execution outcomes: a preconf means the transaction was
+// committed by the leader, not that it succeeded. If BAM adds outcomes, an
+// ExecutionResult field will be added here.
+message BamTransaction {
+  // Raw transaction bytes as received from the BAM firehose.
+  bytes transaction = 1;
+  // Slot the transaction was preconfirmed in.
+  uint64 slot = 2;
+  // Whether the bundle this transaction belongs to reverts on error (bundle
+  // intent, not an execution outcome).
+  bool is_revert_on_error = 3;
+  // BAM node the transaction was received from.
+  string node = 4;
+  // Per-transaction sequence, increasing in scheduler order over the BAM node
+  // process lifetime (BAM schedules FIFO with respect to account locks).
+  // Transactions sharing a sequence were bundled together.
+  uint64 sequence = 5;
+  // Execution order within the bundle identified by `sequence`.
+  uint32 bundle_position = 6;
+}
+
+// Periodic keepalive so idle streams (never-matching filters, quiet upstream)
+// still exercise the HTTP/2 connection.
+message Ping {}
+
+// Matching transactions were withheld because the account exceeded its
+// coverage limit (share of the total feed over a sliding window). Clipping
+// is never silent: one notice per second summarizes what was withheld on
+// this stream. Persistently exceeding the limit closes the stream.
+message CoverageClip {
+  // Transactions withheld on this stream since the previous notice.
+  uint64 transactions = 1;
+}
