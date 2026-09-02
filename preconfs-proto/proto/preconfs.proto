@@ -26,6 +26,9 @@ package preconfs;
 //   new frame; the last SlotEnd wins.
 // - Slot boundaries are scoped to the stream's region like transactions;
 //   within that region they are delivered regardless of transaction filters.
+// - A stream that subscribes while a slot is open joins at the next
+//   SlotStart: nothing from the partially observed slot is delivered, so
+//   every transaction on the stream sits inside a framed slot.
 // - Sources (regions/nodes) are independent; slot boundaries are ordered per
 //   source, not across sources.
 //
