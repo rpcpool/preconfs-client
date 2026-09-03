@@ -2,9 +2,19 @@
 name = "triton-preconfs-proto"
 version = "0.1.0"
 edition = { workspace = true }
+authors = { workspace = true }
+homepage = { workspace = true }
 repository = { workspace = true }
+license = { workspace = true }
+keywords = { workspace = true }
+categories = { workspace = true }
+rust-version = { workspace = true }
 description = "Triton Preconfs gRPC protobuf definitions"
-publish = false
+readme = "../README.md"
+publish = true
+
+[package.metadata.docs.rs]
+all-features = true
 
 [lints]
 workspace = true

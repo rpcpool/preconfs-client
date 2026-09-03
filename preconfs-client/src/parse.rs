@@ -7,14 +7,21 @@ use {smallvec::SmallVec, solana_pubkey::Pubkey, solana_signature::Signature, thi
 /// transactions so parsing does not heap-allocate per transaction.
 pub type AccountKeys = SmallVec<[Pubkey; 16]>;
 
+/// Bytes that are not a transaction the parser understands.
 #[derive(Debug, Error)]
 pub enum ParseError {
+    /// The data ends before the field being read.
     #[error("truncated transaction")]
     Truncated,
+    /// A compact-u16 length prefix that is not valid.
     #[error("invalid compact-u16 length prefix")]
     BadLength,
+    /// A transaction with zero signatures.
     #[error("transaction has no signatures")]
     NoSignature,
+    /// A message version other than legacy, v0 or v1. Keys read from the
+    /// wrong offsets would match nothing or the wrong filters, so this is
+    /// an error, not a guess.
     #[error("unsupported message version {0}")]
     UnsupportedVersion(u8),
 }

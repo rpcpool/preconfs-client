@@ -4,12 +4,19 @@ members = ["preconfs-proto", "preconfs-client", "examples/rust"]
 
 [workspace.package]
 edition = "2024"
+authors = ["Triton One"]
+homepage = "https://triton.one"
 repository = "https://github.com/rpcpool/preconfs-client"
+license = "Apache-2.0"
+keywords = ["solana", "grpc", "preconfirmations"]
+categories = ["api-bindings", "network-programming"]
+rust-version = "1.87"
 
 [workspace.dependencies]
 anyhow = "1"
 bytes = "1"
 clap = { version = "4", features = ["derive", "env"] }
+futures-core = "0.3"
 hyper-util = { version = "0.1", features = ["tokio"] }
 prost = "0.14"
 protoc-bin-vendored = "3"
@@ -20,6 +27,7 @@ thiserror = "2"
 tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "time"] }
 tokio-stream = "0.1"
 tonic = { version = "0.14", features = ["transport", "tls-aws-lc", "tls-native-roots"] }
+tonic-health = "0.14"
 tonic-prost = "0.14"
 tonic-prost-build = "0.14"
 tower = "0.5"

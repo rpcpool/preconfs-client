@@ -13,17 +13,22 @@ is still being built, before the transaction lands on chain.
 ## Quick start
 
 ```rust
-use triton_preconfs_client::{Connector, Feed, Filter, Filters, Region};
+use triton_preconfs_client::{Connector, Event, Feed, Filter, Filters, Region};
 
 let client = Connector::new("https://preconfs.rpcpool.com")
-    .x_token(token)
+    .x_token(Some(token))
     .connect()
     .await?;
 let region = Region::parse(Feed::Harmonic, "ams")?;
-let filters = Filters::single(Filter::accounts([account]));
+let filters = Filters::single(Filter::new().accounts([account]));
 let mut stream = client.subscribe_harmonic(region, filters).await?;
-while let Some(update) = stream.message().await? {
-    println!("{update:?}");
+while let Some(event) = stream.next().await {
+    match event? {
+        Event::Transaction(matched) => println!("{:?}", matched.transaction),
+        Event::SlotEnd { slot } => println!("slot {slot} complete"),
+        Event::Reconnected { .. } => println!("reconnected, data in between is lost"),
+        _ => {}
+    }
 }
 ```
 
@@ -32,7 +37,7 @@ The same shape works for the BAM feed with `Feed::Bam` and
 
 ```
 cargo run -p preconfs-example -- --endpoint https://preconfs.rpcpool.com \
-    --x-token $TOKEN --feed harmonic --region ams \
+    --x-token $TOKEN --region harmonic:ams \
     --account TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
 ```
 
@@ -61,18 +66,22 @@ refused.
 
 ## The stream
 
-- Harmonic updates are framed per slot: `SlotStart`, the transactions,
+- Harmonic events are framed per slot: `SlotStart`, the transactions,
   `SlotEnd`. After `SlotEnd` for a slot you hold everything your filters
   matched for it. A stream that subscribes while a slot is open joins at
-  the next `SlotStart`. BAM has no framing; its updates carry the slot
-  number per transaction.
+  the next `SlotStart`. BAM has no framing; each transaction names its
+  slot.
 - The server never drops matching transactions silently. If your account
-  is over its coverage limit, withheld transactions are announced with a
-  `CoverageClip` notice; if you cannot keep up, the stream is closed with
-  an explicit error.
-- Updates carry raw transaction bytes. `parse::parse_static_parts` extracts
-  the signature and account keys without a full decode;
-  `parse::parse_signature` is cheaper when only the signature is needed.
+  is over its coverage limit, withheld transactions are announced with an
+  `Event::Clip`; if you cannot keep up, the stream ends with an explicit
+  error.
+- Streams reconnect by default. When a point of presence restarts, the
+  stream resubscribes with a backoff and yields `Event::Reconnected`; the
+  data produced in between is gone. `Connector::reconnect` tunes the
+  schedule, `Connector::no_reconnect` turns it off.
+- Transactions carry raw bytes. `parse::parse_static_parts` extracts the
+  signature and account keys without a full decode; `parse::parse_signature`
+  is cheaper when only the signature is needed.
 
 ## Releases
 

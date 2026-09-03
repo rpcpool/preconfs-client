@@ -14,8 +14,8 @@ package preconfs;
 //   delivered is coverage enforcement, which is always announced with a
 //   CoverageClip. An open stream is therefore complete with respect to the
 //   subscribed filters, minus what CoverageClip notices account for.
-// - Transactions for a slot are delivered between that slot's SlotStart and
-//   SlotEnd, in upstream order. Any pending CoverageClip is delivered before
+// - Harmonic transactions for a slot are delivered between that slot's
+//   SlotStart and SlotEnd, in upstream order; BAM has no slot framing. Any pending CoverageClip is delivered before
 //   SlotEnd, so after SlotEnd for slot N from a source a subscriber holds
 //   everything its filters matched for that slot, or a notice saying what
 //   was withheld.
@@ -177,30 +177,16 @@ message HarmonicTransaction {
 }
 
 // A leader began streaming preconfs for this slot via `node`. Emitted once
-// the BAM upstream ships block framing; the upstream plans to carry the
-// validator identity here as well.
-message BamSlotStart {
-  uint64 slot = 1;
-  // Same value as BamTransaction.node.
-  string node = 2;
-}
-
-// No further transactions for this slot will arrive from `node`.
-message BamSlotEnd {
-  uint64 slot = 1;
-  // Same value as BamTransaction.node.
-  string node = 2;
-}
-
+// BAM has no slot framing: the stream carries transactions, pings and clip
+// notices, and every transaction names its slot. Fields 4 and 5 held slot
+// boundaries in an earlier draft the upstream never shipped.
 message BamUpdate {
-  // Names of the request filters this update matched; empty for slot
-  // boundaries and pings.
+  // Names of the request filters this update matched; empty for pings.
   repeated string filters = 1;
+  reserved 4, 5;
   oneof payload {
     BamTransaction transaction = 2;
     Ping ping = 3;
-    BamSlotStart slot_start = 4;
-    BamSlotEnd slot_end = 5;
     CoverageClip clip = 6;
   }
 }

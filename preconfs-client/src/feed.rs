@@ -6,13 +6,20 @@ use {
     triton_preconfs_proto::preconfs::{BamRegion, HarmonicRegion, subscribe_request},
 };
 
+/// A preconf source. Each feed has its own set of regions and its own
+/// stream service.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Feed {
+    /// Harmonic: the builder executes the transaction and reports the
+    /// outcome, so streams carry execution results and slot framing.
     Harmonic,
+    /// BAM: the leader commits the transaction; no execution outcome and
+    /// no slot framing, the slot is on each transaction.
     Bam,
 }
 
 impl Feed {
+    /// Lowercase name, `harmonic` or `bam`.
     pub const fn name(self) -> &'static str {
         match self {
             Self::Harmonic => "harmonic",
@@ -82,26 +89,49 @@ const BAM: &[(&str, BamRegion)] = &[
 ];
 
 /// A feed-typed region, the required part of every subscribe request.
+///
+/// Build one with [`Region::parse`] or parse `feed:region` such as
+/// `harmonic:ams`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Region {
+    /// A Harmonic region.
     Harmonic(HarmonicRegion),
+    /// A BAM region.
     Bam(BamRegion),
 }
 
+/// A feed or region name the client does not know, or a region used with
+/// the wrong feed.
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum RegionError {
+    /// Not `harmonic` or `bam`.
     #[error("unknown feed {0}; expected harmonic or bam")]
     UnknownFeed(String),
+    /// Not one of the feed's regions.
     #[error("unknown {feed} region {name}; expected one of {expected}")]
     UnknownRegion {
+        /// The feed the name was looked up in.
         feed: Feed,
+        /// The name given.
         name: String,
+        /// The names the feed serves, comma separated.
         expected: String,
+    },
+    /// Not of the form `feed:region`.
+    #[error("expected feed:region such as harmonic:ams, got {0:?}")]
+    Format(String),
+    /// A region of one feed passed to the other feed's subscribe.
+    #[error("{region} is not a {expected} region")]
+    WrongFeed {
+        /// The feed being subscribed.
+        expected: Feed,
+        /// The region given.
+        region: Region,
     },
 }
 
 impl Region {
-    /// Resolves a lowercase region name such as `ams` for the feed.
+    /// Resolves a region name such as `ams` for the feed, case insensitive.
     pub fn parse(feed: Feed, name: &str) -> Result<Self, RegionError> {
         let lower = name.to_ascii_lowercase();
         let found = match feed {
@@ -121,6 +151,7 @@ impl Region {
         })
     }
 
+    /// The feed this region belongs to.
     pub const fn feed(self) -> Feed {
         match self {
             Self::Harmonic(_) => Feed::Harmonic,
@@ -128,6 +159,7 @@ impl Region {
         }
     }
 
+    /// Lowercase region name, `ams` and so on.
     pub fn name(self) -> &'static str {
         match self {
             Self::Harmonic(region) => HARMONIC
@@ -149,9 +181,21 @@ impl Region {
     }
 }
 
+/// Parses `feed:region`, such as `harmonic:ams` or `bam:fra`.
+impl FromStr for Region {
+    type Err = RegionError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let (feed, region) = value
+            .split_once(':')
+            .ok_or_else(|| RegionError::Format(value.to_string()))?;
+        Self::parse(feed.parse()?, region)
+    }
+}
+
 impl fmt::Display for Region {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {}", self.feed(), self.name())
+        write!(f, "{}:{}", self.feed(), self.name())
     }
 }
 
@@ -167,6 +211,7 @@ mod tests {
                 assert_eq!(region.feed(), feed);
                 assert_eq!(region.name(), name);
                 assert_eq!(Region::parse(feed, &name.to_uppercase()).unwrap(), region);
+                assert_eq!(region.to_string().parse::<Region>().unwrap(), region);
             }
         }
         assert_eq!(Feed::Harmonic.regions().len(), 7);
@@ -187,6 +232,10 @@ mod tests {
         assert_eq!(
             "shreds".parse::<Feed>().unwrap_err(),
             RegionError::UnknownFeed("shreds".into())
+        );
+        assert_eq!(
+            "ams".parse::<Region>().unwrap_err(),
+            RegionError::Format("ams".into())
         );
     }
 }

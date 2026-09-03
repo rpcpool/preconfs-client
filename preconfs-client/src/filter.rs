@@ -10,28 +10,39 @@ use {
     triton_preconfs_proto::preconfs::{ExecutionResult, SubscribeRequest, TransactionFilter},
 };
 
-/// Limits enforced by the server; a request over any of them is refused.
+/// Filters per stream; a request over it is refused.
 pub const MAX_FILTERS: usize = 64;
+/// Accounts per `account_include` or `account_required` list.
 pub const MAX_ACCOUNTS_PER_LIST: usize = 10_000;
+/// Signatures per filter.
 pub const MAX_SIGNATURES_PER_FILTER: usize = 1_000;
+/// Bytes in a filter name; names are echoed on every matching update.
 pub const MAX_FILTER_NAME_BYTES: usize = 64;
 
+/// A filter set the server would refuse.
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum FilterError {
+    /// The set is empty.
     #[error("at least one filter is required")]
     NoFilters,
+    /// More than [`MAX_FILTERS`].
     #[error("too many filters (max {MAX_FILTERS})")]
     TooManyFilters,
+    /// A name longer than [`MAX_FILTER_NAME_BYTES`].
     #[error("filter name {0:?} is longer than {MAX_FILTER_NAME_BYTES} bytes")]
     NameTooLong(String),
+    /// An account list longer than [`MAX_ACCOUNTS_PER_LIST`].
     #[error("filter {0}: too many accounts (max {MAX_ACCOUNTS_PER_LIST})")]
     TooManyAccounts(String),
+    /// More signatures than [`MAX_SIGNATURES_PER_FILTER`].
     #[error("filter {0}: too many signatures (max {MAX_SIGNATURES_PER_FILTER})")]
     TooManySignatures(String),
+    /// A filter that selects nothing; the full feed cannot be subscribed.
     #[error(
         "filter {0}: set account_include, account_required or signatures; full-feed subscriptions are refused"
     )]
     Empty(String),
+    /// `execution_results` on a feed that does not report them.
     #[error("filter {0}: execution results are only available on the harmonic feed")]
     ExecutionResultsUnsupported(String),
 }
@@ -39,34 +50,52 @@ pub enum FilterError {
 /// One named filter. A transaction matches when it satisfies every set
 /// condition: any of `account_include`, all of `account_required`, one of
 /// `signatures`, one of `execution_results`.
+///
+/// ```
+/// use triton_preconfs_client::Filter;
+/// use solana_pubkey::Pubkey;
+///
+/// let token_program: Pubkey = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA".parse().unwrap();
+/// let mine = Pubkey::new_unique();
+/// let filter = Filter::new().accounts([token_program]).require([mine]);
+/// ```
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Filter {
+    /// Matches transactions referencing any of these accounts.
     pub account_include: Vec<Pubkey>,
+    /// Matches transactions referencing all of these accounts.
     pub account_required: Vec<Pubkey>,
+    /// Matches these transactions by first signature.
     pub signatures: Vec<Signature>,
-    /// Harmonic only.
+    /// Matches transactions with one of these outcomes. Harmonic only.
     pub execution_results: Vec<ExecutionResult>,
 }
 
 impl Filter {
-    /// Transactions referencing any of these accounts.
-    pub fn accounts(accounts: impl IntoIterator<Item = Pubkey>) -> Self {
-        Self {
-            account_include: accounts.into_iter().collect(),
-            ..Self::default()
-        }
+    /// An empty filter; add at least one condition before subscribing.
+    pub fn new() -> Self {
+        Self::default()
     }
 
+    /// Adds accounts any of which a transaction must reference.
+    pub fn accounts(mut self, accounts: impl IntoIterator<Item = Pubkey>) -> Self {
+        self.account_include.extend(accounts);
+        self
+    }
+
+    /// Adds accounts all of which a transaction must reference.
     pub fn require(mut self, accounts: impl IntoIterator<Item = Pubkey>) -> Self {
         self.account_required.extend(accounts);
         self
     }
 
+    /// Adds signatures to match on.
     pub fn signatures(mut self, signatures: impl IntoIterator<Item = Signature>) -> Self {
         self.signatures.extend(signatures);
         self
     }
 
+    /// Adds execution outcomes to match on. Harmonic only.
     pub fn execution_results(mut self, results: impl IntoIterator<Item = ExecutionResult>) -> Self {
         self.execution_results.extend(results);
         self
@@ -110,25 +139,38 @@ impl Filter {
     }
 }
 
-/// Named filters for one stream; every matching update echoes the names.
+/// Named filters for one stream; every matching update echoes the names
+/// that matched.
 #[derive(Debug, Clone, Default)]
 pub struct Filters {
     filters: Vec<(String, Filter)>,
 }
 
 impl Filters {
+    /// An empty set; add filters with [`with`](Self::with).
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Adds `filter` under `name`. Names are echoed on matching updates.
     pub fn with(mut self, name: impl Into<String>, filter: Filter) -> Self {
         self.filters.push((name.into(), filter));
         self
     }
 
-    /// A single filter named `default`.
+    /// A set of one filter named `default`.
     pub fn single(filter: Filter) -> Self {
         Self::new().with("default", filter)
+    }
+
+    /// Number of filters in the set.
+    pub const fn len(&self) -> usize {
+        self.filters.len()
+    }
+
+    /// Whether the set has no filters.
+    pub const fn is_empty(&self) -> bool {
+        self.filters.is_empty()
     }
 
     /// Validates against the server's limits and builds the request.
@@ -164,10 +206,12 @@ mod tests {
     fn builds_the_request_the_server_expects() {
         let region = Region::Harmonic(HarmonicRegion::Ams);
         let request = Filters::new()
-            .with("mine", Filter::accounts([key(1)]).require([key(2)]))
+            .with("mine", Filter::new().accounts([key(1)]).require([key(2)]))
             .with(
                 "landed",
-                Filter::accounts([key(3)]).execution_results([ExecutionResult::Success]),
+                Filter::new()
+                    .accounts([key(3)])
+                    .execution_results([ExecutionResult::Success]),
             )
             .into_request(region)
             .unwrap();
@@ -190,14 +234,16 @@ mod tests {
             FilterError::NoFilters
         );
         assert_eq!(
-            Filters::single(Filter::default())
+            Filters::single(Filter::new())
                 .into_request(bam)
                 .unwrap_err(),
             FilterError::Empty("default".into())
         );
         assert_eq!(
             Filters::single(
-                Filter::accounts([key(1)]).execution_results([ExecutionResult::Success])
+                Filter::new()
+                    .accounts([key(1)])
+                    .execution_results([ExecutionResult::Success])
             )
             .into_request(bam)
             .unwrap_err(),
@@ -205,15 +251,16 @@ mod tests {
         );
         assert_eq!(
             Filters::new()
-                .with("n".repeat(65), Filter::accounts([key(1)]))
+                .with("n".repeat(65), Filter::new().accounts([key(1)]))
                 .into_request(bam)
                 .unwrap_err(),
             FilterError::NameTooLong("n".repeat(65))
         );
         let mut many = Filters::new();
         for index in 0..65 {
-            many = many.with(format!("f{index}"), Filter::accounts([key(1)]));
+            many = many.with(format!("f{index}"), Filter::new().accounts([key(1)]));
         }
+        assert_eq!(many.len(), 65);
         assert_eq!(
             many.into_request(bam).unwrap_err(),
             FilterError::TooManyFilters

@@ -1,17 +1,19 @@
-//! Subscribes to one feed in one region and logs every update.
+//! Subscribes to one feed in one region and logs every event.
 //!
-//!   preconfs-subscribe --endpoint https://preconfs.rpcpool.com --x-token $TOKEN \
-//!       --feed harmonic --region ams --account TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
+//! ```text
+//! preconfs-subscribe --endpoint https://preconfs.rpcpool.com --x-token $TOKEN \
+//!     --region harmonic:ams --account TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
+//! ```
 
 use {
-    anyhow::{Context, Result},
+    anyhow::Result,
     clap::Parser,
     solana_pubkey::Pubkey,
     solana_signature::Signature,
-    tracing::info,
+    tracing::{info, warn},
     triton_preconfs_client::{
-        Connector, Feed, Filter, Filters, Region, parse,
-        proto::preconfs::{ExecutionResult, bam_update, harmonic_update},
+        Connector, Event, Feed, Filter, Filters, Region, parse,
+        proto::preconfs::{BamTransaction, ExecutionResult, HarmonicTransaction},
     },
 };
 
@@ -25,12 +27,9 @@ struct Args {
     /// point of presence behind the anycast address).
     #[arg(long)]
     dial: Option<String>,
-    /// harmonic or bam.
-    #[arg(long, default_value = "harmonic")]
-    feed: String,
-    /// Region of the feed, e.g. ams.
+    /// Feed and region, e.g. harmonic:ams or bam:fra.
     #[arg(long)]
-    region: String,
+    region: Region,
     /// Transactions referencing any of these accounts.
     #[arg(long = "account")]
     accounts: Vec<Pubkey>,
@@ -41,7 +40,10 @@ struct Args {
     signatures: Vec<Signature>,
     /// Harmonic only: success, execution_failure or fees_only.
     #[arg(long = "result")]
-    results: Vec<String>,
+    results: Vec<ExecutionResult>,
+    /// End the stream on the first disconnect instead of resubscribing.
+    #[arg(long)]
+    no_reconnect: bool,
 }
 
 #[tokio::main]
@@ -52,89 +54,82 @@ async fn main() -> Result<()> {
         )
         .init();
     let args = Args::parse();
-    let feed: Feed = args.feed.parse()?;
-    let region = Region::parse(feed, &args.region)?;
-    let results = args
-        .results
-        .iter()
-        .map(|name| {
-            ExecutionResult::from_str_name(&format!("EXECUTION_RESULT_{}", name.to_uppercase()))
-                .with_context(|| format!("unknown execution result {name}"))
-        })
-        .collect::<Result<Vec<_>>>()?;
-    let filter = Filter::accounts(args.accounts)
+    let filter = Filter::new()
+        .accounts(args.accounts)
         .require(args.required)
         .signatures(args.signatures)
-        .execution_results(results);
+        .execution_results(args.results);
     let filters = Filters::single(filter);
 
-    let mut connector = Connector::new(&args.endpoint);
-    if let Some(token) = &args.x_token {
-        connector = connector.x_token(token);
-    }
+    let mut connector = Connector::new(&args.endpoint).x_token(args.x_token);
     if let Some(dial) = &args.dial {
         connector = connector.dial(dial);
+    }
+    if args.no_reconnect {
+        connector = connector.no_reconnect();
     }
     let client = connector.connect().await?;
     let version = client.version().await?;
     info!(version = version.version, pop = version.region, "connected");
 
-    match feed {
+    match args.region.feed() {
         Feed::Harmonic => {
-            let mut stream = client.subscribe_harmonic(region, filters).await?;
-            while let Some(update) = stream.message().await? {
-                match update.payload {
-                    Some(harmonic_update::Payload::Transaction(txn)) => {
-                        let signature = parse::parse_signature(&txn.transaction).ok();
-                        info!(
-                            slot = txn.slot,
-                            region = txn.region,
-                            seq = txn.seq,
-                            result = txn.result,
-                            signature = ?signature,
-                            filters = ?update.filters,
-                            "txn"
-                        );
+            let mut stream = client.subscribe_harmonic(args.region, filters).await?;
+            while let Some(event) = stream.next().await {
+                match event? {
+                    Event::Transaction(matched) => {
+                        log_harmonic(&matched.filters, &matched.transaction)
                     }
-                    Some(harmonic_update::Payload::SlotStart(s)) => {
-                        info!(slot = s.slot, "slot start")
-                    }
-                    Some(harmonic_update::Payload::SlotEnd(s)) => info!(slot = s.slot, "slot end"),
-                    Some(harmonic_update::Payload::Ping(_)) => info!("ping"),
-                    Some(harmonic_update::Payload::Clip(clip)) => {
-                        info!(transactions = clip.transactions, "clipped by coverage");
-                    }
-                    None => {}
+                    other => log_event(&other),
                 }
             }
         }
         Feed::Bam => {
-            let mut stream = client.subscribe_bam(region, filters).await?;
-            while let Some(update) = stream.message().await? {
-                match update.payload {
-                    Some(bam_update::Payload::Transaction(txn)) => {
-                        let signature = parse::parse_signature(&txn.transaction).ok();
-                        info!(
-                            slot = txn.slot,
-                            node = txn.node,
-                            sequence = txn.sequence,
-                            revert_on_error = txn.is_revert_on_error,
-                            signature = ?signature,
-                            filters = ?update.filters,
-                            "txn"
-                        );
-                    }
-                    Some(bam_update::Payload::SlotStart(s)) => info!(slot = s.slot, "slot start"),
-                    Some(bam_update::Payload::SlotEnd(s)) => info!(slot = s.slot, "slot end"),
-                    Some(bam_update::Payload::Ping(_)) => info!("ping"),
-                    Some(bam_update::Payload::Clip(clip)) => {
-                        info!(transactions = clip.transactions, "clipped by coverage");
-                    }
-                    None => {}
+            let mut stream = client.subscribe_bam(args.region, filters).await?;
+            while let Some(event) = stream.next().await {
+                match event? {
+                    Event::Transaction(matched) => log_bam(&matched.filters, &matched.transaction),
+                    other => log_event(&other),
                 }
             }
         }
     }
     info!("stream ended");
     Ok(())
+}
+
+fn log_harmonic(filters: &[String], txn: &HarmonicTransaction) {
+    let signature = parse::parse_signature(&txn.transaction).ok();
+    info!(
+        slot = txn.slot,
+        region = txn.region,
+        seq = txn.seq,
+        result = ?txn.result(),
+        signature = ?signature,
+        ?filters,
+        "txn"
+    );
+}
+
+fn log_bam(filters: &[String], txn: &BamTransaction) {
+    let signature = parse::parse_signature(&txn.transaction).ok();
+    info!(
+        slot = txn.slot,
+        node = txn.node,
+        sequence = txn.sequence,
+        revert_on_error = txn.is_revert_on_error,
+        signature = ?signature,
+        ?filters,
+        "txn"
+    );
+}
+
+fn log_event<T>(event: &Event<T>) {
+    match event {
+        Event::SlotStart { slot } => info!(slot, "slot start"),
+        Event::SlotEnd { slot } => info!(slot, "slot end"),
+        Event::Clip { transactions } => warn!(transactions, "clipped by coverage"),
+        Event::Reconnected { attempts } => warn!(attempts, "reconnected, data in between is lost"),
+        Event::Transaction(_) => {}
+    }
 }
