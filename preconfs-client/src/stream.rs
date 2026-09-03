@@ -55,9 +55,13 @@ pub enum Event<T> {
         /// The slot.
         slot: u64,
     },
-    /// Matching transactions were withheld since the previous notice
-    /// because the account exceeded its coverage limit. Never silent: the
-    /// notice always arrives before the affected slot's `SlotEnd`.
+    /// Matching transactions were withheld since the previous notice: the
+    /// account went over its coverage share, the part of a feed's total
+    /// traffic one account may receive over a sliding window. Never
+    /// silent: the notice always arrives before the affected slot's
+    /// `SlotEnd`. Staying over the share ends the stream with
+    /// `ResourceExhausted` and subscribing again is refused for a cooloff
+    /// period.
     Clip {
         /// Transactions withheld on this stream since the previous notice.
         transactions: u64,

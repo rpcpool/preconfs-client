@@ -2,7 +2,10 @@
 
 Client and protobuf definitions for the Triton Preconfs streams. Preconfs
 are preconfirmed Solana transactions: the feeds deliver them while the slot
-is still being built, before the transaction lands on chain.
+is still being built, before the transaction lands on chain. There are two
+feeds, each with its own regions: Harmonic, where a builder executes the
+transaction and reports the outcome, and BAM, where the leader commits it
+without reporting an outcome.
 
 | crate | what |
 |---|---|
@@ -44,8 +47,10 @@ cargo run -p preconfs-example -- --endpoint https://preconfs.rpcpool.com \
 ## Connecting
 
 - `preconfs.rpcpool.com` is anycast: the connection lands on the closest
-  point of presence. `Connector::dial` pins one by address.
-- Every request carries your `x-token`.
+  point of presence, one of the servers behind that address.
+  `Connector::dial` pins one by address.
+- Every request carries your `x-token`, the token issued with your
+  preconfs subscription.
 - A stream serves one feed in one region. Harmonic regions: ams, ewr, fra,
   lon, tyo, sgp, slc. BAM regions: `Feed::Bam.regions()` lists them.
 
@@ -71,10 +76,9 @@ refused.
   matched for it. A stream that subscribes while a slot is open joins at
   the next `SlotStart`. BAM has no framing; each transaction names its
   slot.
-- The server never drops matching transactions silently. If your account
-  is over its coverage limit, withheld transactions are announced with an
-  `Event::Clip`; if you cannot keep up, the stream ends with an explicit
-  error.
+- The server never drops matching transactions silently. Withheld
+  transactions are announced with an `Event::Clip` (see Coverage below);
+  if you cannot keep up, the stream ends with an explicit error.
 - Streams reconnect by default. When a point of presence restarts, the
   stream resubscribes with a backoff and yields `Event::Reconnected`; the
   data produced in between is gone. `Connector::reconnect` tunes the
@@ -82,6 +86,15 @@ refused.
 - Transactions carry raw bytes. `parse::parse_static_parts` extracts the
   signature and account keys without a full decode; `parse::parse_signature`
   is cheaper when only the signature is needed.
+
+## Coverage
+
+Each account may receive up to a share of a feed's total traffic, measured
+over a sliding window. Over that share, matching transactions are withheld
+and the count is announced with `Event::Clip`. Staying over it ends the
+stream with `ResourceExhausted`, and subscribing again is refused for a
+cooloff period; with reconnect on, the stream retries by itself. Filters
+that select only what you need keep you under the share.
 
 ## Releases
 

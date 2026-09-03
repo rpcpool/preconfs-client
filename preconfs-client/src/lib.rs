@@ -41,8 +41,9 @@
 //! Harmonic feed every transaction sits between its slot's `SlotStart` and
 //! `SlotEnd`; after `SlotEnd` the program holds everything its filters
 //! matched for that slot. BAM has no framing, each transaction names its
-//! slot. Pings are consumed by the stream. Coverage clipping is announced
-//! with [`Event::Clip`], never silent.
+//! slot. Pings are consumed by the stream. Transactions withheld because an
+//! account is over its coverage share are announced with [`Event::Clip`],
+//! never silent.
 //!
 //! # Reconnect
 //!
