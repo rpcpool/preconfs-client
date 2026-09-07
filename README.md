@@ -1,11 +1,15 @@
 # preconfs-client
 
-Client and protobuf definitions for the Triton Preconfs streams. Preconfs
-are preconfirmed Solana transactions: the feeds deliver them while the slot
-is still being built, before the transaction lands on chain. There are two
-feeds, each with its own regions: Harmonic, where a builder executes the
-transaction and reports the outcome, and BAM, where the leader commits it
-without reporting an outcome.
+Client and protobuf definitions for the Triton Preconfs streams.
+
+A preconfirmation is a transaction announced by the party building the
+block the moment it is executed or committed into the slot, before any
+shred exists and before any node reports it. It is the earliest signal that
+a transaction is in a block, not the cluster's confirmation. Two feeds
+produce them, Harmonic and BAM, each with its own regions.
+
+Full documentation, including how each feed works and what the stream
+guarantees, is at [docs.triton.one](https://docs.triton.one).
 
 | crate | what |
 |---|---|
