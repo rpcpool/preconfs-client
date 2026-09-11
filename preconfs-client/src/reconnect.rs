@@ -54,12 +54,15 @@ impl Default for Reconnect {
 }
 
 impl Reconnect {
-    /// Delay before attempt number `attempt` (1 based).
+    /// Delay before attempt number `attempt` (1 based). Once the product
+    /// overflows a `Duration` (attempt 69 with the defaults) the cap wins;
+    /// `mul_f64` would panic instead.
     pub fn interval(&self, attempt: u32) -> Duration {
-        let factor = self.multiplier.powi(attempt.saturating_sub(1) as i32);
-        self.initial_interval
-            .mul_f64(factor.max(1.0))
-            .min(self.max_interval)
+        let exponent = i32::try_from(attempt.saturating_sub(1)).unwrap_or(i32::MAX);
+        let factor = self.multiplier.powi(exponent);
+        let secs = self.initial_interval.as_secs_f64() * factor.max(1.0);
+        Duration::try_from_secs_f64(secs)
+            .map_or(self.max_interval, |delay| delay.min(self.max_interval))
     }
 
     /// Whether `attempts` consecutive failures exhaust the budget.
@@ -115,6 +118,8 @@ mod tests {
         assert_eq!(reconnect.interval(2), Duration::from_millis(200));
         assert_eq!(reconnect.interval(4), Duration::from_millis(800));
         assert_eq!(reconnect.interval(20), Duration::from_secs(10));
+        assert_eq!(reconnect.interval(69), Duration::from_secs(10));
+        assert_eq!(reconnect.interval(u32::MAX), Duration::from_secs(10));
         assert!(!reconnect.exhausted(1_000));
         let bounded = Reconnect {
             max_retries: Some(3),

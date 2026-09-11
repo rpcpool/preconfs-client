@@ -12,3 +12,8 @@ All notable changes to the crates in this repository.
 - The `Unreleased` section is moved under the version at release time.
 
 ## Unreleased
+
+### Fixed
+
+- client: the reconnect backoff no longer panics once its product overflows a
+  `Duration` (attempt 69 with the defaults); the cap wins instead.
