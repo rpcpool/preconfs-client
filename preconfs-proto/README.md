@@ -6,4 +6,4 @@ Preconfs streams. Most programs want
 which builds on this crate.
 
 Usage and the stream contract: [rpcpool/preconfs-client](https://github.com/rpcpool/preconfs-client)
-and [docs.triton.one](https://docs.triton.one).
+and [docs.triton.one](https://docs.triton.one/chains/solana/preconfirmations-grpc).

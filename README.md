@@ -9,7 +9,7 @@ a transaction is in a block, not the cluster's confirmation. Two feeds
 produce them, Harmonic and BAM, each with its own regions.
 
 Full documentation, including how each feed works and what the stream
-guarantees, is at [docs.triton.one](https://docs.triton.one).
+guarantees, is at [docs.triton.one](https://docs.triton.one/chains/solana/preconfirmations-grpc).
 
 | crate | what |
 |---|---|
