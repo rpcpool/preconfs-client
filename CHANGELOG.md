@@ -26,6 +26,9 @@ First release of both crates.
   against the server limits, transaction parsing for legacy, v0 and v1
   messages, per domain errors.
 
+### Changed
+- Minimum supported Rust is 1.89, what the dependencies need.
+
 ### Fixed
 - `Connector::health` sends the `x-token` like every other call; the server
   refuses health checks without one since server 0.2.0.

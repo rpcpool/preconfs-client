@@ -13,8 +13,8 @@ guarantees, is at [docs.triton.one](https://docs.triton.one).
 
 | crate | what |
 |---|---|
-| `triton-preconfs-proto` | `proto/preconfs.proto` and the generated messages and gRPC clients |
-| `triton-preconfs-client` | connection, feeds and regions, filters, transaction parsing |
+| [`triton-preconfs-proto`](https://crates.io/crates/triton-preconfs-proto) | `proto/preconfs.proto` and the generated messages and gRPC clients ([docs](https://docs.rs/triton-preconfs-proto)) |
+| [`triton-preconfs-client`](https://crates.io/crates/triton-preconfs-client) | connection, feeds and regions, filters, transaction parsing ([docs](https://docs.rs/triton-preconfs-client)) |
 | `examples/rust` | `preconfs-subscribe`, a CLI that subscribes and logs updates |
 
 ## Quick start
