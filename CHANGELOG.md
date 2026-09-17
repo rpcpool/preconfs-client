@@ -16,3 +16,5 @@ All notable changes to the crates in this repository.
 ### Fixed
 - rustls 0.23.45 (RUSTSEC-2026-0285, TLS 1.3 handshake messages accepted
   across encryption level boundaries).
+- The reconnect backoff no longer panics once the delay outgrows a
+  `Duration` (attempt 69 with the defaults); the cap applies instead.
