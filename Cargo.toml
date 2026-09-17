@@ -10,7 +10,7 @@ repository = "https://github.com/rpcpool/preconfs-client"
 license = "Apache-2.0"
 keywords = ["solana", "grpc", "preconfirmations"]
 categories = ["api-bindings", "network-programming"]
-rust-version = "1.87"
+rust-version = "1.89"
 
 [workspace.dependencies]
 anyhow = "1"

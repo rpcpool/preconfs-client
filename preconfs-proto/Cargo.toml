@@ -10,7 +10,8 @@ keywords = { workspace = true }
 categories = { workspace = true }
 rust-version = { workspace = true }
 description = "Triton Preconfs gRPC protobuf definitions"
-readme = "../README.md"
+documentation = "https://docs.rs/triton-preconfs-proto"
+readme = "README.md"
 publish = true
 
 [package.metadata.docs.rs]

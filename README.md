@@ -9,12 +9,12 @@ a transaction is in a block, not the cluster's confirmation. Two feeds
 produce them, Harmonic and BAM, each with its own regions.
 
 Full documentation, including how each feed works and what the stream
-guarantees, is at [docs.triton.one](https://docs.triton.one).
+guarantees, is at [docs.triton.one](https://docs.triton.one/chains/solana/preconfirmations-grpc).
 
 | crate | what |
 |---|---|
-| `triton-preconfs-proto` | `proto/preconfs.proto` and the generated messages and gRPC clients |
-| `triton-preconfs-client` | connection, feeds and regions, filters, transaction parsing |
+| [`triton-preconfs-proto`](https://crates.io/crates/triton-preconfs-proto) | `proto/preconfs.proto` and the generated messages and gRPC clients ([docs](https://docs.rs/triton-preconfs-proto)) |
+| [`triton-preconfs-client`](https://crates.io/crates/triton-preconfs-client) | connection, feeds and regions, filters, transaction parsing ([docs](https://docs.rs/triton-preconfs-client)) |
 | `examples/rust` | `preconfs-subscribe`, a CLI that subscribes and logs updates |
 
 ## Quick start
