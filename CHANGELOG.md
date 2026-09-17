@@ -12,3 +12,7 @@ All notable changes to the crates in this repository.
 - The `Unreleased` section is moved under the version at release time.
 
 ## Unreleased
+
+### Fixed
+- rustls 0.23.45 (RUSTSEC-2026-0285, TLS 1.3 handshake messages accepted
+  across encryption level boundaries).
