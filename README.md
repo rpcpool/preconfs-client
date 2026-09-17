@@ -54,7 +54,8 @@ cargo run -p preconfs-example -- --endpoint https://preconfs.rpcpool.com \
   point of presence, one of the servers behind that address.
   `Connector::dial` pins one by address.
 - Every request carries your `x-token`, the token issued with your
-  preconfs subscription.
+  preconfs subscription. The server answers nothing without it, version
+  and health checks included.
 - A stream serves one feed in one region. Harmonic regions: ams, ewr, fra,
   lon, tyo, sgp, slc. BAM regions: `Feed::Bam.regions()` lists them.
 
