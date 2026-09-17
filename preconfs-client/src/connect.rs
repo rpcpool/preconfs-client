@@ -261,13 +261,15 @@ impl Client {
     }
 
     /// The server's overall health, from the standard gRPC health service.
+    /// Needs the token like every other rpc.
     pub async fn health(&self) -> Result<ServingStatus, Status> {
-        let response = HealthClient::new(self.channel.clone())
-            .check(HealthCheckRequest {
-                service: String::new(),
-            })
-            .await?
-            .into_inner();
+        let response =
+            HealthClient::with_interceptor(self.channel.clone(), self.interceptor.clone())
+                .check(HealthCheckRequest {
+                    service: String::new(),
+                })
+                .await?
+                .into_inner();
         Ok(ServingStatus::try_from(response.status).unwrap_or(ServingStatus::Unknown))
     }
 

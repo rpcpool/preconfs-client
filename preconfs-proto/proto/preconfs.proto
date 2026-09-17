@@ -4,8 +4,9 @@ package preconfs;
 
 // One Subscribe service per upstream feed. Authorization is per service: an
 // x-token is entitled to /preconfs.Harmonic/Subscribe, /preconfs.BAM/Subscribe,
-// or both. Filters are shared; update payloads are feed-specific because the
-// upstreams expose different metadata.
+// or both. Every rpc, GetVersion and the grpc health service included, needs
+// an x-token entitled to at least one feed. Filters are shared; update
+// payloads are feed-specific because the upstreams expose different metadata.
 //
 // Delivery contract:
 // - The server never silently drops matching transactions. If a subscriber

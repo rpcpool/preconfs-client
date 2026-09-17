@@ -13,8 +13,23 @@ All notable changes to the crates in this repository.
 
 ## Unreleased
 
+## proto-v0.1.0, client-v0.1.0 - 2026-09-17
+
+First release of both crates.
+
+### Added
+- `triton-preconfs-proto`: the `preconfs.proto` definitions with the
+  generated tonic clients for the Harmonic and BAM services.
+- `triton-preconfs-client`: `Connector` (anycast or pinned dial, `x-token`
+  on every request, keepalive and optional compression), typed
+  `HarmonicStream` and `BamStream` with reconnect, `Filters` validated
+  against the server limits, transaction parsing for legacy, v0 and v1
+  messages, per domain errors.
+
 ### Fixed
-- rustls 0.23.45 (RUSTSEC-2026-0285, TLS 1.3 handshake messages accepted
-  across encryption level boundaries).
+- `Connector::health` sends the `x-token` like every other call; the server
+  refuses health checks without one since server 0.2.0.
 - The reconnect backoff no longer panics once the delay outgrows a
   `Duration` (attempt 69 with the defaults); the cap applies instead.
+- rustls 0.23.45 (RUSTSEC-2026-0285, TLS 1.3 handshake messages accepted
+  across encryption level boundaries).
