@@ -12,7 +12,7 @@ use {
 
 /// Filters per stream; a request over it is refused.
 pub const MAX_FILTERS: usize = 64;
-/// Accounts per `account_include` or `account_required` list.
+/// Accounts per `account_include`, `account_exclude` or `account_required` list.
 pub const MAX_ACCOUNTS_PER_LIST: usize = 10_000;
 /// Signatures per filter.
 pub const MAX_SIGNATURES_PER_FILTER: usize = 1_000;
@@ -39,7 +39,7 @@ pub enum FilterError {
     TooManySignatures(String),
     /// A filter that selects nothing; the full feed cannot be subscribed.
     #[error(
-        "filter {0}: set account_include, account_required or signatures; full-feed subscriptions are refused"
+        "filter {0}: set account_include, account_required or signatures (account_exclude only narrows them); full-feed subscriptions are refused"
     )]
     Empty(String),
     /// `execution_results` on a feed that does not report them.
@@ -93,7 +93,7 @@ impl Filter {
 
     /// Adds accounts none of which a transaction may reference. Narrows a
     /// selection; a filter with only exclusions is refused by
-    /// [`validate`](Filters::into_request).
+    /// [`Filters::into_request`].
     pub fn exclude(mut self, accounts: impl IntoIterator<Item = Pubkey>) -> Self {
         self.account_exclude.extend(accounts);
         self
