@@ -66,6 +66,7 @@ transaction matches a filter when it satisfies every set condition:
 
 - `account_include`: references any of these accounts
 - `account_required`: references all of these accounts
+- `account_exclude`: drops transactions referencing any of these; narrows a selection, cannot stand alone
 - `signatures`: is one of these signatures
 - `execution_results`: landed with one of these outcomes (Harmonic only)
 
