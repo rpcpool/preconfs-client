@@ -16,10 +16,10 @@ package preconfs;
 //   CoverageClip. An open stream is therefore complete with respect to the
 //   subscribed filters, minus what CoverageClip notices account for.
 // - Harmonic transactions for a slot are delivered between that slot's
-//   SlotStart and SlotEnd, in upstream order; BAM has no slot framing. Any pending CoverageClip is delivered before
-//   SlotEnd, so after SlotEnd for slot N from a source a subscriber holds
-//   everything its filters matched for that slot, or a notice saying what
-//   was withheld.
+//   SlotStart and SlotEnd, in upstream order; BAM has no slot framing. Any
+//   pending CoverageClip is delivered before SlotEnd, so after SlotEnd for
+//   slot N from a source a subscriber holds everything its filters matched
+//   for that slot, or a notice saying what was withheld.
 // - Slot restarts: rarely (observed ~0.25% of slots) a forking leader restarts
 //   a slot, producing a second SlotStart for an already-ended slot, followed
 //   by the slot's definitive transactions and a new SlotEnd. On a repeated
@@ -177,7 +177,6 @@ message HarmonicTransaction {
   uint64 seq = 5;
 }
 
-// A leader began streaming preconfs for this slot via `node`. Emitted once
 // BAM has no slot framing: the stream carries transactions, pings and clip
 // notices, and every transaction names its slot. Fields 4 and 5 held slot
 // boundaries in an earlier draft the upstream never shipped.

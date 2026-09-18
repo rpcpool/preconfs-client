@@ -13,6 +13,10 @@ All notable changes to the crates in this repository.
 
 ## Unreleased
 
+### Fixed
+- proto comments: a half sentence left from the removed BAM slot boundaries,
+  and a merged line in the stream contract. No wire change.
+
 ## proto-v0.1.0, client-v0.1.0 - 2026-09-17
 
 First release of both crates.
