@@ -13,6 +13,11 @@ All notable changes to the crates in this repository.
 
 ## Unreleased
 
+### Added
+- `account_exclude` on `TransactionFilter` (field 2) and `Filter::exclude`:
+  drop transactions referencing any of the listed accounts. A further
+  condition on a positive filter; a filter with only exclusions is refused.
+
 ### Fixed
 - proto comments: a half sentence left from the removed BAM slot boundaries,
   and a merged line in the stream contract. No wire change.

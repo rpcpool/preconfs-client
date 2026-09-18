@@ -105,12 +105,13 @@ message VersionResponse {
 }
 
 message TransactionFilter {
-  // No account_exclude by design: filters are positive selections only.
-  reserved 2;
-  reserved "account_exclude";
-
   // Match if ANY of these accounts is in the transaction's static account keys.
   repeated string account_include = 1;
+  // Drop the transaction if ANY of these accounts is in its static account
+  // keys. A further condition on a positive filter, not a selection: a filter
+  // with only account_exclude is refused, the feed minus a few accounts is
+  // still the feed.
+  repeated string account_exclude = 2;
   // Match only if ALL of these accounts are in the transaction's static account keys.
   repeated string account_required = 3;
   // Match if the transaction signature equals ANY of these (base58).

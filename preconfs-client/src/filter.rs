@@ -63,6 +63,8 @@ pub enum FilterError {
 pub struct Filter {
     /// Matches transactions referencing any of these accounts.
     pub account_include: Vec<Pubkey>,
+    /// Drops transactions referencing any of these accounts.
+    pub account_exclude: Vec<Pubkey>,
     /// Matches transactions referencing all of these accounts.
     pub account_required: Vec<Pubkey>,
     /// Matches these transactions by first signature.
@@ -89,6 +91,14 @@ impl Filter {
         self
     }
 
+    /// Adds accounts none of which a transaction may reference. Narrows a
+    /// selection; a filter with only exclusions is refused by
+    /// [`validate`](Filters::into_request).
+    pub fn exclude(mut self, accounts: impl IntoIterator<Item = Pubkey>) -> Self {
+        self.account_exclude.extend(accounts);
+        self
+    }
+
     /// Adds signatures to match on.
     pub fn signatures(mut self, signatures: impl IntoIterator<Item = Signature>) -> Self {
         self.signatures.extend(signatures);
@@ -106,6 +116,7 @@ impl Filter {
             return Err(FilterError::NameTooLong(name.to_string()));
         }
         if self.account_include.len() > MAX_ACCOUNTS_PER_LIST
+            || self.account_exclude.len() > MAX_ACCOUNTS_PER_LIST
             || self.account_required.len() > MAX_ACCOUNTS_PER_LIST
         {
             return Err(FilterError::TooManyAccounts(name.to_string()));
@@ -128,6 +139,7 @@ impl Filter {
     fn into_proto(self) -> TransactionFilter {
         TransactionFilter {
             account_include: self.account_include.iter().map(Pubkey::to_string).collect(),
+            account_exclude: self.account_exclude.iter().map(Pubkey::to_string).collect(),
             account_required: self
                 .account_required
                 .iter()
@@ -219,6 +231,20 @@ mod tests {
         let mine = &request.transactions["mine"];
         assert_eq!(mine.account_include, vec![key(1).to_string()]);
         assert_eq!(mine.account_required, vec![key(2).to_string()]);
+        let narrowed = Filters::single(Filter::new().accounts([key(1)]).exclude([key(9)]))
+            .into_request(region)
+            .unwrap();
+        assert_eq!(
+            narrowed.transactions["default"].account_exclude,
+            vec![key(9).to_string()]
+        );
+        assert_eq!(
+            Filters::single(Filter::new().exclude([key(9)]))
+                .into_request(region)
+                .unwrap_err(),
+            FilterError::Empty("default".into()),
+            "exclusions alone are not a selection"
+        );
         assert_eq!(request.transactions["landed"].execution_results, vec![0]);
         assert!(matches!(
             request.region,
