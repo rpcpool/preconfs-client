@@ -13,13 +13,13 @@ All notable changes to the crates in this repository.
 
 ## Unreleased
 
+## client-v0.2.0 - 2026-09-22
+
 ### Fixed
-- parse: v1 transactions (SIMD-0385, on mainnet since epoch 1035) came out
-  of `parse_static_parts` as an error and out of `parse_signature` with a
-  wrong signature: a v1 transaction carries its signatures after the
-  message, not in front of it. Legacy, v0 and v1 now parse alike.
-- proto comments: a half sentence left from the removed BAM slot boundaries,
-  and a merged line in the stream contract. No wire change.
+- parse: v1 transactions (SIMD-0385) parse. Their signatures follow the
+  message instead of leading it, and the parser read them at the legacy
+  offset, so they came out as malformed. Parsing now goes through the
+  Solana sdk, which covers legacy, v0 and v1 alike.
 
 ### Changed
 - The error enums and `Event` are `#[non_exhaustive]`: a new variant is no
@@ -39,6 +39,10 @@ All notable changes to the crates in this repository.
 ## proto-v0.1.0, client-v0.1.0 - 2026-09-17
 
 First release of both crates.
+
+### Fixed
+- proto comments: a half sentence left from the removed BAM slot boundaries,
+  and a merged line in the stream contract. No wire change.
 
 ### Added
 - `triton-preconfs-proto`: the `preconfs.proto` definitions with the
