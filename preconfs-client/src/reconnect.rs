@@ -29,7 +29,17 @@ use {
 /// between attempts. Pass it to [`Connector::reconnect`](crate::Connector::reconnect),
 /// or call [`Connector::no_reconnect`](crate::Connector::no_reconnect) to
 /// have the stream end on the first drop.
+///
+/// ```
+/// use std::time::Duration;
+/// use triton_preconfs_client::Reconnect;
+///
+/// let reconnect = Reconnect::default()
+///     .max_interval(Duration::from_secs(30))
+///     .max_retries(Some(20));
+/// ```
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub struct Reconnect {
     /// Delay before the first retry.
     pub initial_interval: Duration,
@@ -54,6 +64,31 @@ impl Default for Reconnect {
 }
 
 impl Reconnect {
+    /// Delay before the first retry.
+    pub const fn initial_interval(mut self, interval: Duration) -> Self {
+        self.initial_interval = interval;
+        self
+    }
+
+    /// Growth factor applied after each failed attempt.
+    pub const fn multiplier(mut self, multiplier: f64) -> Self {
+        self.multiplier = multiplier;
+        self
+    }
+
+    /// Upper bound for the delay between attempts.
+    pub const fn max_interval(mut self, interval: Duration) -> Self {
+        self.max_interval = interval;
+        self
+    }
+
+    /// Consecutive failures after which the stream gives up; `None` never
+    /// gives up.
+    pub const fn max_retries(mut self, retries: Option<u32>) -> Self {
+        self.max_retries = retries;
+        self
+    }
+
     /// Delay before attempt number `attempt` (1 based). The growth is
     /// computed in seconds and converted at the end: `Duration::mul_f64`
     /// panics once the product no longer fits, which the defaults reach at
@@ -123,10 +158,7 @@ mod tests {
         assert_eq!(reconnect.interval(69), Duration::from_secs(10));
         assert_eq!(reconnect.interval(u32::MAX), Duration::from_secs(10));
         assert!(!reconnect.exhausted(1_000));
-        let bounded = Reconnect {
-            max_retries: Some(3),
-            ..Reconnect::default()
-        };
+        let bounded = Reconnect::default().max_retries(Some(3));
         assert!(!bounded.exhausted(3));
         assert!(bounded.exhausted(4));
     }

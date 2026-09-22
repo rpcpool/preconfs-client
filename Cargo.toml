@@ -20,9 +20,6 @@ futures-core = "0.3"
 hyper-util = { version = "0.1", features = ["tokio"] }
 prost = "0.14"
 protoc-bin-vendored = "3"
-smallvec = "1"
-solana-pubkey = "4.0.0"
-solana-signature = "3.0.0"
 thiserror = "2"
 tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "time"] }
 tokio-stream = "0.1"
@@ -33,10 +30,18 @@ tonic-prost-build = "0.14"
 tower = "0.5"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+wincode = "0.6"
+
+# Solana SDK
+solana-hash = "4.0.0"
+solana-message = "4.4.0"
+solana-pubkey = "4.0.0"
+solana-signature = "3.0.0"
+solana-transaction = "4.2.0"
 
 # Workspace crates
 triton-preconfs-proto = { path = "preconfs-proto", version = "0.1.0" }
-triton-preconfs-client = { path = "preconfs-client", version = "0.1.0" }
+triton-preconfs-client = { path = "preconfs-client", version = "0.2.0" }
 
 [workspace.lints.clippy]
 clone_on_ref_ptr = "deny"

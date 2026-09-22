@@ -42,6 +42,7 @@ pub struct Matched<T> {
 /// filters matched for it. BAM has no framing; only `Transaction`, `Clip`
 /// and `Reconnected` occur, and each transaction names its slot.
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub enum Event<T> {
     /// A leader began streaming preconfs for this slot.
     SlotStart {
@@ -75,10 +76,14 @@ pub enum Event<T> {
     },
 }
 
+mod sealed {
+    pub trait Sealed {}
+}
+
 /// One of the two feeds' update messages: how to subscribe to it and how
-/// its payload maps to [`Event`]. Implemented for [`HarmonicUpdate`] and
-/// [`BamUpdate`].
-pub trait FeedUpdate: Sized + Send + 'static {
+/// its payload maps to [`Event`]. Sealed: implemented for [`HarmonicUpdate`]
+/// and [`BamUpdate`] only.
+pub trait FeedUpdate: sealed::Sealed + Sized + Send + 'static {
     /// The feed's transaction message.
     type Transaction: Send;
     /// Whether the feed frames slots. A framed stream that (re)subscribes
@@ -94,6 +99,8 @@ pub trait FeedUpdate: Sized + Send + 'static {
     /// The event for this update; `None` for pings and empty payloads.
     fn into_event(self) -> Option<Event<Self::Transaction>>;
 }
+
+impl sealed::Sealed for HarmonicUpdate {}
 
 impl FeedUpdate for HarmonicUpdate {
     type Transaction = HarmonicTransaction;
@@ -121,6 +128,8 @@ impl FeedUpdate for HarmonicUpdate {
         })
     }
 }
+
+impl sealed::Sealed for BamUpdate {}
 
 impl FeedUpdate for BamUpdate {
     type Transaction = BamTransaction;

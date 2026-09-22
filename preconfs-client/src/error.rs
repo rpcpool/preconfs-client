@@ -10,6 +10,7 @@ use {
 /// Building the connection failed. From [`Connector::connect`](crate::Connector::connect)
 /// and [`Connector::connect_lazy`](crate::Connector::connect_lazy).
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum ConnectError {
     /// The endpoint is not a URI.
     #[error("endpoint is not a valid uri: {0}")]
@@ -28,6 +29,7 @@ pub enum ConnectError {
 /// Opening a stream failed. From [`Client::subscribe_harmonic`](crate::Client::subscribe_harmonic)
 /// and [`Client::subscribe_bam`](crate::Client::subscribe_bam).
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum SubscribeError {
     /// The region does not belong to the feed being subscribed.
     #[error(transparent)]
@@ -46,6 +48,7 @@ pub enum SubscribeError {
 /// swallowed when reconnect is on and retrying can fix it (see
 /// [`Reconnect`](crate::Reconnect)).
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum StreamError {
     /// The server ended the stream with a status; the code says why.
     #[error("stream ended: {0}")]

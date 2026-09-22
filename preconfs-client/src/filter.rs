@@ -21,6 +21,7 @@ pub const MAX_FILTER_NAME_BYTES: usize = 64;
 
 /// A filter set the server would refuse.
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum FilterError {
     /// The set is empty.
     #[error("at least one filter is required")]
@@ -60,6 +61,7 @@ pub enum FilterError {
 /// let filter = Filter::new().accounts([token_program]).require([mine]);
 /// ```
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct Filter {
     /// Matches transactions referencing any of these accounts.
     pub account_include: Vec<Pubkey>,
@@ -134,7 +136,12 @@ impl Filter {
                 .map(Pubkey::to_string)
                 .collect(),
             signature: self.signatures.iter().map(Signature::to_string).collect(),
-            execution_results: self.execution_results.iter().map(|r| *r as i32).collect(),
+            execution_results: self
+                .execution_results
+                .iter()
+                .copied()
+                .map(i32::from)
+                .collect(),
         }
     }
 }

@@ -103,6 +103,7 @@ pub enum Region {
 /// A feed or region name the client does not know, or a region used with
 /// the wrong feed.
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum RegionError {
     /// Not `harmonic` or `bam`.
     #[error("unknown feed {0}; expected harmonic or bam")]

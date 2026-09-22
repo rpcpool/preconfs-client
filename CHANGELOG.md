@@ -14,8 +14,27 @@ All notable changes to the crates in this repository.
 ## Unreleased
 
 ### Fixed
+- parse: v1 transactions (SIMD-0385, on mainnet since epoch 1035) came out
+  of `parse_static_parts` as an error and out of `parse_signature` with a
+  wrong signature: a v1 transaction carries its signatures after the
+  message, not in front of it. Legacy, v0 and v1 now parse alike.
 - proto comments: a half sentence left from the removed BAM slot boundaries,
   and a merged line in the stream contract. No wire change.
+
+### Changed
+- The error enums and `Event` are `#[non_exhaustive]`: a new variant is no
+  longer a breaking change. Matches outside the crate need a wildcard arm.
+- `Filter` and `Reconnect` are `#[non_exhaustive]` and built through their
+  methods; `Reconnect` gains `initial_interval`, `multiplier`,
+  `max_interval` and `max_retries`. Struct literals outside the crate no
+  longer compile; the fields stay readable.
+- `stream::FeedUpdate` is sealed.
+- `parse::parse` returns the decoded `VersionedTransaction`;
+  `parse_static_parts` returns the static keys as a `Vec<Pubkey>` and the
+  `AccountKeys` alias is gone. `parse::ParseError` is
+  `Malformed(wincode::ReadError)` or `NoSignature`; `Truncated`, `BadLength`
+  and `UnsupportedVersion` are gone. The bytes must be one whole
+  transaction: trailing bytes are an error.
 
 ## proto-v0.1.0, client-v0.1.0 - 2026-09-17
 

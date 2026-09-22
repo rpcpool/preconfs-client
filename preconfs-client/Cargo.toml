@@ -1,6 +1,6 @@
 [package]
 name = "triton-preconfs-client"
-version = "0.1.0"
+version = "0.2.0"
 edition = { workspace = true }
 authors = { workspace = true }
 homepage = { workspace = true }
@@ -29,16 +29,17 @@ workspace = true
 bytes = { workspace = true }
 futures-core = { workspace = true }
 hyper-util = { workspace = true }
-smallvec = { workspace = true }
 solana-pubkey = { workspace = true }
 solana-signature = { workspace = true }
+solana-transaction = { workspace = true, features = ["wincode"] }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tonic = { workspace = true }
 tonic-health = { workspace = true }
 tower = { workspace = true }
 triton-preconfs-proto = { workspace = true }
+wincode = { workspace = true }
 
 [dev-dependencies]
-solana-hash = "4.0.0"
-solana-message = { version = "4.4", features = ["wincode"] }
+solana-hash = { workspace = true }
+solana-message = { workspace = true, features = ["wincode"] }

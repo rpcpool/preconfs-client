@@ -1448,6 +1448,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "solana-signer"
+version = "3.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "520bd6021163ee517f4bdc7ae03ded904f97e11320001ba0b3355f45eb14f558"
+dependencies = [
+ "solana-pubkey",
+ "solana-signature",
+ "solana-transaction-error",
+]
+
+[[package]]
+name = "solana-transaction"
+version = "4.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "444a979f617ef7ed4e01aa228800df52d0af55f533e1840e8d48d468e607885f"
+dependencies = [
+ "solana-address",
+ "solana-hash",
+ "solana-instruction 3.5.1",
+ "solana-instruction-error",
+ "solana-message",
+ "solana-sanitize",
+ "solana-sdk-ids",
+ "solana-short-vec",
+ "solana-signature",
+ "solana-signer",
+ "solana-transaction-error",
+ "wincode",
+]
+
+[[package]]
 name = "solana-transaction-error"
 version = "3.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1810,22 +1841,23 @@ dependencies = [
 
 [[package]]
 name = "triton-preconfs-client"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bytes",
  "futures-core",
  "hyper-util",
- "smallvec",
  "solana-hash",
  "solana-message",
  "solana-pubkey",
  "solana-signature",
+ "solana-transaction",
  "thiserror",
  "tokio",
  "tonic",
  "tonic-health",
  "tower",
  "triton-preconfs-proto",
+ "wincode",
 ]
 
 [[package]]
