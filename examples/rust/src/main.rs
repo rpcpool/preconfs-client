@@ -130,6 +130,7 @@ fn log_event<T>(event: &Event<T>) {
         Event::SlotEnd { slot } => info!(slot, "slot end"),
         Event::Clip { transactions } => warn!(transactions, "clipped by coverage"),
         Event::Reconnected { attempts } => warn!(attempts, "reconnected, data in between is lost"),
-        Event::Transaction(_) => {}
+        // Transactions are logged by the caller; new event kinds are ignored.
+        _ => {}
     }
 }

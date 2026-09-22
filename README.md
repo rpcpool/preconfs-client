@@ -88,9 +88,9 @@ refused.
   stream resubscribes with a backoff and yields `Event::Reconnected`; the
   data produced in between is gone. `Connector::reconnect` tunes the
   schedule, `Connector::no_reconnect` turns it off.
-- Transactions carry raw bytes. `parse::parse_static_parts` extracts the
-  signature and account keys without a full decode; `parse::parse_signature`
-  is cheaper when only the signature is needed.
+- Transactions carry raw bytes. `parse::parse_static_parts` returns the
+  first signature and the static account keys; `parse::parse_signature`
+  returns the signature alone.
 
 ## Coverage
 
