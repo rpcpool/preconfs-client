@@ -67,13 +67,24 @@ transaction matches a filter when it satisfies every set condition:
 - `account_include`: references any of these accounts
 - `account_required`: references all of these accounts
 - `account_exclude`: drops transactions referencing any of these; narrows a selection, cannot stand alone
+- `signer_include`: signed by any of these accounts (fee payer included)
+- `signer_exclude`: drops transactions signed by any of these; narrows a selection, cannot stand alone
+- `instructions`: a top-level instruction invokes the program and its data
+  passes every memcmp (bytes at an offset) and the exact data size, when
+  set; any of the listed instruction filters. CPI instructions are not seen.
 - `signatures`: is one of these signatures
 - `execution_results`: landed with one of these outcomes (Harmonic only)
 
+Account conditions see the static account keys only; an account a v0
+transaction loads through a lookup table is not seen, by include or by
+exclude.
+
 Limits, checked client side before the request is sent: 64 filters per
 stream, 10000 accounts per list, 1000 signatures per filter, 64 byte
-names. Every filter must select something; full feed subscriptions are
-refused.
+names, 16 instruction filters per stream, 4 memcmps per instruction
+filter, 128 bytes per memcmp, and a memcmp or data size must fit in 4096
+bytes of instruction data. Every filter must select something; full feed
+subscriptions are refused.
 
 ## The stream
 

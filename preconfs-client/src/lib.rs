@@ -76,7 +76,7 @@ pub use {
     connect::{Client, Connector},
     error::{ConnectError, StreamError, SubscribeError},
     feed::{Feed, Region, RegionError},
-    filter::{Filter, FilterError, Filters},
+    filter::{Filter, FilterError, Filters, InstructionFilter, Memcmp},
     reconnect::Reconnect,
     stream::{BamEvent, BamStream, Event, HarmonicEvent, HarmonicStream, Matched},
     triton_preconfs_proto as proto,

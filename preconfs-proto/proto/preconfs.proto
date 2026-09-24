@@ -120,6 +120,35 @@ message TransactionFilter {
   // the only constraint. Harmonic only: the BAM upstream does not report
   // execution outcomes, so setting this on the BAM feed rejects the subscribe.
   repeated ExecutionResult execution_results = 5;
+  // Match if ANY of these accounts signed the transaction: the first
+  // header.num_required_signatures static account keys, fee payer first.
+  repeated string signer_include = 6;
+  // Drop the transaction if ANY of these accounts signed it. Like
+  // account_exclude, it narrows a positive filter and cannot stand alone.
+  repeated string signer_exclude = 7;
+  // Match if ANY top-level instruction satisfies ANY of these. Instructions
+  // a program invokes through CPI are not part of the transaction and are
+  // not seen.
+  repeated InstructionFilter instructions = 8;
+}
+
+// A condition on one top-level instruction, modelled on the
+// getProgramAccounts filters: the instruction invokes program_id and its
+// data passes every memcmp and the data_size, when set.
+message InstructionFilter {
+  // Program the instruction invokes (base58). Required.
+  string program_id = 1;
+  // The instruction data holds these bytes at these offsets.
+  repeated Memcmp memcmp = 2;
+  // The instruction data is exactly this many bytes.
+  optional uint32 data_size = 3;
+}
+
+// Bytes at an offset of the instruction data. Data shorter than
+// offset + bytes does not match.
+message Memcmp {
+  uint32 offset = 1;
+  bytes bytes = 2;
 }
 
 // The committed outcome of a transaction observed by the builder.
