@@ -13,6 +13,13 @@ All notable changes to the crates in this repository.
 
 ## Unreleased
 
+### Added
+- `account_exclude` on `TransactionFilter` (field 2) and `Filter::exclude`:
+  drops transactions that reference any of the listed accounts. It narrows
+  a positive filter; a filter with only exclusions is refused.
+  `TransactionFilter` gains a field, so struct literals need
+  `..Default::default()`.
+
 ## client-v0.2.0 - 2026-09-22
 
 ### Fixed
