@@ -51,7 +51,9 @@ message SubscribeRequest {
   // filter; the names of all matching filters are echoed in the update.
   //
   // Full-feed subscriptions are not allowed: every filter must positively
-  // select transactions via account_include, account_required, or signature.
+  // select transactions via account_include, account_required,
+  // signer_include, instructions or signature. The exclude lists and
+  // execution_results only narrow a selection.
   map<string, TransactionFilter> transactions = 1;
   // Region the stream serves, typed per feed and REQUIRED: one stream
   // serves exactly one region, open one stream per region for more. The
@@ -104,13 +106,16 @@ message VersionResponse {
   string region = 2;
 }
 
+// A transaction matches a filter when it satisfies every condition that is
+// set; an empty list is a condition that is not set.
 message TransactionFilter {
-  // No account_exclude by design: filters are positive selections only.
-  reserved 2;
-  reserved "account_exclude";
-
   // Match if ANY of these accounts is in the transaction's static account keys.
   repeated string account_include = 1;
+  // Drop the transaction if ANY of these accounts is in its static account
+  // keys. A further condition on a positive filter, not a selection: a filter
+  // with only account_exclude is refused, the feed minus a few accounts is
+  // still the feed.
+  repeated string account_exclude = 2;
   // Match only if ALL of these accounts are in the transaction's static account keys.
   repeated string account_required = 3;
   // Match if the transaction signature equals ANY of these (base58).
@@ -119,6 +124,35 @@ message TransactionFilter {
   // the only constraint. Harmonic only: the BAM upstream does not report
   // execution outcomes, so setting this on the BAM feed rejects the subscribe.
   repeated ExecutionResult execution_results = 5;
+  // Match if ANY of these accounts signed the transaction: the first
+  // header.num_required_signatures static account keys, fee payer first.
+  repeated string signer_include = 6;
+  // Drop the transaction if ANY of these accounts signed it. Like
+  // account_exclude, it narrows a positive filter and cannot stand alone.
+  repeated string signer_exclude = 7;
+  // Match if ANY top-level instruction satisfies ANY of these. Instructions
+  // a program invokes through CPI are not part of the transaction and are
+  // not seen.
+  repeated InstructionFilter instructions = 8;
+}
+
+// A condition on one top-level instruction, modelled on the
+// getProgramAccounts filters: the instruction invokes program_id and its
+// data passes every memcmp and the data_size, when set.
+message InstructionFilter {
+  // Program the instruction invokes (base58). Required.
+  string program_id = 1;
+  // The instruction data holds these bytes at these offsets.
+  repeated Memcmp memcmp = 2;
+  // The instruction data is exactly this many bytes.
+  optional uint32 data_size = 3;
+}
+
+// Bytes at an offset of the instruction data. Data shorter than
+// offset + bytes does not match.
+message Memcmp {
+  uint32 offset = 1;
+  bytes bytes = 2;
 }
 
 // The committed outcome of a transaction observed by the builder.

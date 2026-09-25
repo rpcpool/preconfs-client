@@ -13,6 +13,35 @@ All notable changes to the crates in this repository.
 
 ## Unreleased
 
+## proto-v0.2.0, client-v0.3.0 - 2026-09-24
+
+### Added
+- `account_exclude` on `TransactionFilter` (field 2) and `Filter::exclude_accounts`:
+  drops transactions that reference any of the listed accounts. It narrows
+  a positive filter; a filter with only exclusions is refused.
+  `TransactionFilter` gains a field, so struct literals need
+  `..Default::default()`.
+- `signer_include` and `signer_exclude` on `TransactionFilter` (fields 6
+  and 7), `Filter::signers` and `Filter::exclude_signers`: match or drop
+  transactions by the accounts that signed them. Signer exclusions alone
+  are refused like account exclusions.
+- `instructions` on `TransactionFilter` (field 8), `InstructionFilter` and
+  `Memcmp`, `Filter::instructions`: match transactions by a top-level
+  instruction's program, bytes at data offsets and exact data size, the
+  getProgramAccounts filters applied to instruction data. New limits:
+  `MAX_INSTRUCTION_FILTERS` per stream, `MAX_MEMCMPS_PER_INSTRUCTION`,
+  `MAX_MEMCMP_BYTES`, `MAX_INSTRUCTION_DATA_BYTES`, and new
+  `FilterError` variants for each.
+
+### Changed
+- The client depends on proto 0.2.0 and re-exports it, so the proto's new
+  `TransactionFilter` fields reach client users as well.
+
+### Fixed
+- proto: the `SubscribeRequest` comment listed only three of the selectors
+  and `TransactionFilter` did not say its conditions combine. No wire
+  change.
+
 ## client-v0.2.0 - 2026-09-22
 
 ### Fixed
