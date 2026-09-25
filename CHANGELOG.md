@@ -26,9 +26,24 @@ All notable changes to the crates in this repository.
   `--exclude-signer`, `--instruction` and `--data-size`, and logs the BAM
   result.
 
+- `HarmonicTransaction::execution_result` and
+  `BamTransaction::execution_result`: the outcome as an
+  `Option<ExecutionResult>`, `None` when unset or unknown. The generated
+  `result()` returns `Success` for both, so prefer these.
+
 ### Changed
 - `execution_results` filters are accepted on the BAM feed. A BAM
   transaction without a reported outcome never matches them.
+- `HarmonicTransaction.result` is `optional` (same field, same wire
+  encoding): unset when the upstream reported an outcome this schema does
+  not know, instead of passing an unknown number that reads as success.
+  In Rust the field is now `Option<i32>`.
+
+### Fixed
+- proto comments: the signatures inside `transaction` are not always right
+  after a count (v1 carries them after the message); the signature filter
+  matches the first signature; `ExecutionResult` covers both feeds and says
+  an unknown value is not a success.
 
 ### Removed
 - `Feed::has_execution_results` and `FilterError::ExecutionResultsUnsupported`:

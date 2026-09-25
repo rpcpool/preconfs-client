@@ -136,7 +136,7 @@ fn log_harmonic(filters: &[String], txn: &HarmonicTransaction) {
         slot = txn.slot,
         region = txn.region,
         seq = txn.seq,
-        result = ?txn.result(),
+        result = ?txn.execution_result(),
         signature = ?signature,
         ?filters,
         "txn"
@@ -150,7 +150,7 @@ fn log_bam(filters: &[String], txn: &BamTransaction) {
         node = txn.node,
         sequence = txn.sequence,
         revert_on_error = txn.is_revert_on_error,
-        result = ?txn.result.map(ExecutionResult::try_from),
+        result = ?txn.execution_result(),
         signature = ?signature,
         ?filters,
         "txn"
