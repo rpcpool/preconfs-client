@@ -51,7 +51,9 @@ message SubscribeRequest {
   // filter; the names of all matching filters are echoed in the update.
   //
   // Full-feed subscriptions are not allowed: every filter must positively
-  // select transactions via account_include, account_required, or signature.
+  // select transactions via account_include, account_required,
+  // signer_include, instructions or signature. The exclude lists and
+  // execution_results only narrow a selection.
   map<string, TransactionFilter> transactions = 1;
   // Region the stream serves, typed per feed and REQUIRED: one stream
   // serves exactly one region, open one stream per region for more. The
@@ -104,6 +106,8 @@ message VersionResponse {
   string region = 2;
 }
 
+// A transaction matches a filter when it satisfies every condition that is
+// set; an empty list is a condition that is not set.
 message TransactionFilter {
   // Match if ANY of these accounts is in the transaction's static account keys.
   repeated string account_include = 1;
