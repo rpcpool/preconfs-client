@@ -13,6 +13,12 @@ All notable changes to the crates in this repository.
 
 ## Unreleased
 
+### Added
+- README filter recipes: excluding spam accounts, signer filters, an
+  instruction by its discriminator or tag, program invoked versus
+  mentioned. The example CLI takes `--exclude`, `--signer`,
+  `--exclude-signer`, `--instruction` and `--data-size`.
+
 ## proto-v0.2.0, client-v0.3.0 - 2026-09-24
 
 ### Added

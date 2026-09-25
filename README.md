@@ -86,6 +86,64 @@ filter, 128 bytes per memcmp, and a memcmp or data size must fit in 4096
 bytes of instruction data. Every filter must select something; full feed
 subscriptions are refused.
 
+### Recipes
+
+Transactions touching a pool, without a spammer that trades it all day:
+
+```rust
+Filter::new().accounts([pool]).exclude_accounts([spammer])
+```
+
+Transactions a wallet actually signed, as fee payer or cosigner. A wallet
+that is only referenced, say as the recipient of a transfer, does not
+match:
+
+```rust
+Filter::new().signers([wallet])
+// only its trades on one program
+Filter::new().signers([wallet]).accounts([program])
+```
+
+One instruction of a program, from any sender. Anchor programs start the
+data with an 8 byte discriminator, the first 8 bytes of
+`sha256("global:<instruction name>")`; Meteora DBC `create_config` is
+`c9cff3724b6f2fbd`, so new configs arrive without their swaps:
+
+```rust
+let dbc: Pubkey = "dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN".parse()?;
+Filter::new().instructions([
+    InstructionFilter::new(dbc).memcmp(0, [201, 207, 243, 114, 75, 111, 47, 189]),
+])
+```
+
+Native programs use a one byte tag, and `data_size` pins the layout. SPL
+Token `TransferChecked` is tag 12 followed by an 8 byte amount and a 1 byte
+decimals:
+
+```rust
+Filter::new().instructions([InstructionFilter::new(token_program).memcmp(0, [12]).data_size(10)])
+```
+
+A program invoked by the transaction, not merely mentioned in it:
+`InstructionFilter::new(program)` matches a top-level instruction of that
+program, while `accounts([program])` also matches transactions that only
+pass the program id as an account.
+
+Everything above except your own transactions:
+
+```rust
+Filter::new().instructions([swap]).exclude_signers([my_wallet])
+```
+
+The example CLI takes the same conditions: `--exclude`, `--signer`,
+`--exclude-signer`, `--instruction PROGRAM` or `PROGRAM:OFFSET:HEX`, and
+`--data-size`:
+
+```
+cargo run -p preconfs-example -- --x-token $TOKEN --region bam:fra \
+    --instruction dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN:0:c9cff3724b6f2fbd
+```
+
 ## The stream
 
 - Harmonic events are framed per slot: `SlotStart`, the transactions,
