@@ -121,8 +121,8 @@ message TransactionFilter {
   // Match if the transaction signature equals ANY of these (base58).
   repeated string signature = 4;
   // Restrict to these execution results; empty means all results. Cannot be
-  // the only constraint. Harmonic only: the BAM upstream does not report
-  // execution outcomes, so setting this on the BAM feed rejects the subscribe.
+  // the only constraint. A transaction without a reported outcome (a BAM
+  // node that does not send one) never matches.
   repeated ExecutionResult execution_results = 5;
   // Match if ANY of these accounts signed the transaction: the first
   // header.num_required_signatures static account keys, fee payer first.
@@ -227,10 +227,6 @@ message BamUpdate {
 
 // The BAM upstream schema is still in flux (block framing being added,
 // per-transaction fields being trimmed); expect additions here.
-//
-// BAM does not report execution outcomes: a preconf means the transaction was
-// committed by the leader, not that it succeeded. If BAM adds outcomes, an
-// ExecutionResult field will be added here.
 message BamTransaction {
   // Raw transaction bytes as received from the BAM firehose.
   bytes transaction = 1;
@@ -247,6 +243,11 @@ message BamTransaction {
   uint64 sequence = 5;
   // Execution order within the bundle identified by `sequence`.
   uint32 bundle_position = 6;
+  // Outcome the leader reported to the BAM node. BAM reports success or
+  // failure only, so a transaction that failed, fees charged, is
+  // EXECUTION_RESULT_EXECUTION_FAILURE, whether it failed to execute or to
+  // load; FEES_ONLY never appears. Unset when the node does not report it.
+  optional ExecutionResult result = 7;
 }
 
 // Periodic keepalive so idle streams (never-matching filters, quiet upstream)

@@ -3,7 +3,7 @@
 //! instead of an INVALID_ARGUMENT from the other side.
 
 use {
-    crate::feed::{Feed, Region},
+    crate::feed::Region,
     solana_pubkey::Pubkey,
     solana_signature::Signature,
     std::collections::HashMap,
@@ -73,9 +73,6 @@ pub enum FilterError {
         "filter {0}: set account_include, account_required, signer_include, instructions or signatures (the exclude lists only narrow them); full-feed subscriptions are refused"
     )]
     Empty(String),
-    /// `execution_results` on a feed that does not report them.
-    #[error("filter {0}: execution results are only available on the harmonic feed")]
-    ExecutionResultsUnsupported(String),
 }
 
 /// One named filter. A transaction matches when it satisfies every set
@@ -113,7 +110,8 @@ pub struct Filter {
     pub instructions: Vec<InstructionFilter>,
     /// Matches these transactions by first signature.
     pub signatures: Vec<Signature>,
-    /// Matches transactions with one of these outcomes. Harmonic only.
+    /// Matches transactions with one of these outcomes. A BAM transaction
+    /// whose node reported no outcome never matches.
     pub execution_results: Vec<ExecutionResult>,
 }
 
@@ -174,13 +172,14 @@ impl Filter {
         self
     }
 
-    /// Adds execution outcomes to match on. Harmonic only.
+    /// Adds execution outcomes to match on. BAM reports success or failure
+    /// only, never fees only.
     pub fn execution_results(mut self, results: impl IntoIterator<Item = ExecutionResult>) -> Self {
         self.execution_results.extend(results);
         self
     }
 
-    fn validate(&self, name: &str, feed: Feed) -> Result<(), FilterError> {
+    fn validate(&self, name: &str) -> Result<(), FilterError> {
         if name.len() > MAX_FILTER_NAME_BYTES {
             return Err(FilterError::NameTooLong(name.to_string()));
         }
@@ -209,9 +208,6 @@ impl Filter {
             && self.signatures.is_empty()
         {
             return Err(FilterError::Empty(name.to_string()));
-        }
-        if !self.execution_results.is_empty() && !feed.has_execution_results() {
-            return Err(FilterError::ExecutionResultsUnsupported(name.to_string()));
         }
         Ok(())
     }
@@ -397,10 +393,9 @@ impl Filters {
         if instructions > MAX_INSTRUCTION_FILTERS {
             return Err(FilterError::TooManyInstructionFilters);
         }
-        let feed = region.feed();
         let mut transactions = HashMap::with_capacity(self.filters.len());
         for (name, filter) in self.filters {
-            filter.validate(&name, feed)?;
+            filter.validate(&name)?;
             transactions.insert(name, filter.into_proto());
         }
         Ok(SubscribeRequest {
@@ -412,7 +407,7 @@ impl Filters {
 
 #[cfg(test)]
 mod tests {
-    use {super::*, triton_preconfs_proto::preconfs::HarmonicRegion};
+    use {super::*, crate::feed::Feed, triton_preconfs_proto::preconfs::HarmonicRegion};
 
     fn key(byte: u8) -> Pubkey {
         Pubkey::new_from_array([byte; 32])
@@ -493,16 +488,15 @@ mod tests {
                 .unwrap_err(),
             FilterError::Empty("default".into())
         );
-        assert_eq!(
-            Filters::single(
-                Filter::new()
-                    .accounts([key(1)])
-                    .execution_results([ExecutionResult::Success])
-            )
-            .into_request(bam)
-            .unwrap_err(),
-            FilterError::ExecutionResultsUnsupported("default".into())
-        );
+        // BAM reports outcomes too, so result filters go through on both feeds.
+        let landed = Filters::single(
+            Filter::new()
+                .accounts([key(1)])
+                .execution_results([ExecutionResult::Success]),
+        )
+        .into_request(bam)
+        .unwrap();
+        assert_eq!(landed.transactions["default"].execution_results, vec![0]);
         assert_eq!(
             Filters::new()
                 .with("n".repeat(65), Filter::new().accounts([key(1)]))
