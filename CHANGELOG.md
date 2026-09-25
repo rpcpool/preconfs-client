@@ -13,6 +13,8 @@ All notable changes to the crates in this repository.
 
 ## Unreleased
 
+## proto-v0.2.0, client-v0.3.0 - 2026-09-24
+
 ### Added
 - `account_exclude` on `TransactionFilter` (field 2) and `Filter::exclude_accounts`:
   drops transactions that reference any of the listed accounts. It narrows
@@ -30,6 +32,15 @@ All notable changes to the crates in this repository.
   `MAX_INSTRUCTION_FILTERS` per stream, `MAX_MEMCMPS_PER_INSTRUCTION`,
   `MAX_MEMCMP_BYTES`, `MAX_INSTRUCTION_DATA_BYTES`, and new
   `FilterError` variants for each.
+
+### Changed
+- The client depends on proto 0.2.0 and re-exports it, so the proto's new
+  `TransactionFilter` fields reach client users as well.
+
+### Fixed
+- proto: the `SubscribeRequest` comment listed only three of the selectors
+  and `TransactionFilter` did not say its conditions combine. No wire
+  change.
 
 ## client-v0.2.0 - 2026-09-22
 
