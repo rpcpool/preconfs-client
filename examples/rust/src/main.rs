@@ -3,6 +3,10 @@
 //! ```text
 //! preconfs-subscribe --endpoint https://preconfs.rpcpool.com --x-token $TOKEN \
 //!     --region harmonic:ams --account TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
+//!
+//! # Meteora DBC create_config from any creator, by its Anchor discriminator
+//! preconfs-subscribe --x-token $TOKEN --region bam:fra \
+//!     --instruction dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN:0:c9cff3724b6f2fbd
 //! ```
 
 use {
@@ -12,7 +16,7 @@ use {
     solana_signature::Signature,
     tracing::{info, warn},
     triton_preconfs_client::{
-        Connector, Event, Feed, Filter, Filters, Region, parse,
+        Connector, Event, Feed, Filter, Filters, InstructionFilter, Region, parse,
         proto::preconfs::{BamTransaction, ExecutionResult, HarmonicTransaction},
     },
 };
@@ -36,6 +40,23 @@ struct Args {
     /// Transactions referencing all of these accounts.
     #[arg(long = "require")]
     required: Vec<Pubkey>,
+    /// Drops transactions referencing any of these accounts.
+    #[arg(long = "exclude")]
+    excluded: Vec<Pubkey>,
+    /// Transactions signed by any of these accounts.
+    #[arg(long = "signer")]
+    signers: Vec<Pubkey>,
+    /// Drops transactions signed by any of these accounts.
+    #[arg(long = "exclude-signer")]
+    excluded_signers: Vec<Pubkey>,
+    /// A top-level instruction invoking PROGRAM, optionally with the hex
+    /// bytes HEX at OFFSET of its data: PROGRAM or PROGRAM:OFFSET:HEX.
+    /// Repeat for any of several.
+    #[arg(long = "instruction", value_parser = parse_instruction)]
+    instructions: Vec<InstructionFilter>,
+    /// Exact data length for every --instruction.
+    #[arg(long, requires = "instructions")]
+    data_size: Option<u32>,
     #[arg(long = "signature")]
     signatures: Vec<Signature>,
     /// Harmonic only: success, execution_failure or fees_only.
@@ -54,9 +75,20 @@ async fn main() -> Result<()> {
         )
         .init();
     let args = Args::parse();
+    let instructions = args
+        .instructions
+        .into_iter()
+        .map(|instruction| match args.data_size {
+            Some(size) => instruction.data_size(size),
+            None => instruction,
+        });
     let filter = Filter::new()
         .accounts(args.accounts)
         .require(args.required)
+        .exclude_accounts(args.excluded)
+        .signers(args.signers)
+        .exclude_signers(args.excluded_signers)
+        .instructions(instructions)
         .signatures(args.signatures)
         .execution_results(args.results);
     let filters = Filters::single(filter);
@@ -132,5 +164,74 @@ fn log_event<T>(event: &Event<T>) {
         Event::Reconnected { attempts } => warn!(attempts, "reconnected, data in between is lost"),
         // Transactions are logged by the caller; new event kinds are ignored.
         _ => {}
+    }
+}
+
+/// PROGRAM or PROGRAM:OFFSET:HEX.
+fn parse_instruction(spec: &str) -> Result<InstructionFilter, String> {
+    let mut parts = spec.split(':');
+    let program: Pubkey = parts
+        .next()
+        .unwrap_or_default()
+        .parse()
+        .map_err(|_| format!("{spec}: bad program id"))?;
+    let filter = InstructionFilter::new(program);
+    match (parts.next(), parts.next(), parts.next()) {
+        (None, _, _) => Ok(filter),
+        (Some(offset), Some(hex), None) => {
+            let offset = offset.parse().map_err(|_| format!("{spec}: bad offset"))?;
+            Ok(filter.memcmp(offset, decode_hex(hex).ok_or(format!("{spec}: bad hex"))?))
+        }
+        _ => Err(format!("{spec}: expected PROGRAM or PROGRAM:OFFSET:HEX")),
+    }
+}
+
+/// Pairs of hex digits, read as bytes so a multibyte character is an error
+/// rather than a split in the middle of it.
+fn decode_hex(hex: &str) -> Option<Vec<u8>> {
+    if !hex.len().is_multiple_of(2) {
+        return None;
+    }
+    hex.as_bytes()
+        .chunks(2)
+        .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).ok()?, 16).ok())
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const DBC: &str = "dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN";
+
+    #[test]
+    fn instruction_specs() {
+        let program: Pubkey = DBC.parse().unwrap();
+        assert_eq!(
+            parse_instruction(DBC).unwrap(),
+            InstructionFilter::new(program)
+        );
+        assert_eq!(
+            parse_instruction(&format!("{DBC}:0:c9cff3724b6f2fbd")).unwrap(),
+            InstructionFilter::new(program).memcmp(0, [201, 207, 243, 114, 75, 111, 47, 189])
+        );
+        assert_eq!(
+            parse_instruction(&format!("{DBC}:8:0A")).unwrap(),
+            InstructionFilter::new(program).memcmp(8, [10])
+        );
+        for bad in [
+            String::new(),
+            "not-a-key".to_string(),
+            format!("{DBC}:"),
+            format!("{DBC}:0"),
+            format!("{DBC}:x:00"),
+            format!("{DBC}:-1:00"),
+            format!("{DBC}:0:0"),
+            format!("{DBC}:0:zz"),
+            format!("{DBC}:0:\u{e9}\u{e9}"),
+            format!("{DBC}:0:00:00"),
+        ] {
+            assert!(parse_instruction(&bad).is_err(), "{bad:?}");
+        }
     }
 }
