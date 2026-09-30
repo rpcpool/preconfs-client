@@ -110,8 +110,9 @@ pub struct Filter {
     pub instructions: Vec<InstructionFilter>,
     /// Matches these transactions by first signature.
     pub signatures: Vec<Signature>,
-    /// Matches transactions with one of these outcomes. A BAM transaction
-    /// whose node reported no outcome never matches.
+    /// Matches transactions with one of these outcomes. A transaction whose
+    /// outcome was not reported, or is not known to this crate, never
+    /// matches.
     pub execution_results: Vec<ExecutionResult>,
 }
 
