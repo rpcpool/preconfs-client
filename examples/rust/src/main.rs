@@ -59,7 +59,7 @@ struct Args {
     data_size: Option<u32>,
     #[arg(long = "signature")]
     signatures: Vec<Signature>,
-    /// Harmonic only: success, execution_failure or fees_only.
+    /// success, execution_failure or fees_only; BAM reports only the first two.
     #[arg(long = "result")]
     results: Vec<ExecutionResult>,
     /// End the stream on the first disconnect instead of resubscribing.
@@ -136,7 +136,7 @@ fn log_harmonic(filters: &[String], txn: &HarmonicTransaction) {
         slot = txn.slot,
         region = txn.region,
         seq = txn.seq,
-        result = ?txn.result(),
+        result = ?txn.execution_result(),
         signature = ?signature,
         ?filters,
         "txn"
@@ -150,6 +150,7 @@ fn log_bam(filters: &[String], txn: &BamTransaction) {
         node = txn.node,
         sequence = txn.sequence,
         revert_on_error = txn.is_revert_on_error,
+        result = ?txn.execution_result(),
         signature = ?signature,
         ?filters,
         "txn"

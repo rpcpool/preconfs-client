@@ -73,7 +73,7 @@ transaction matches a filter when it satisfies every set condition:
   passes every memcmp (bytes at an offset) and the exact data size, when
   set; any of the listed instruction filters. CPI instructions are not seen.
 - `signatures`: is one of these signatures
-- `execution_results`: landed with one of these outcomes (Harmonic only)
+- `execution_results`: landed with one of these outcomes; BAM reports success or failure only, and a BAM transaction without a reported outcome never matches
 
 Account conditions see the static account keys only; an account a v0
 transaction loads through a lookup table is not seen, by include or by

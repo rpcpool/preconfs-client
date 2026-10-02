@@ -13,11 +13,41 @@ All notable changes to the crates in this repository.
 
 ## Unreleased
 
+## proto-v0.3.0, client-v0.4.0 - 2026-09-25
+
 ### Added
+- `result` on `BamTransaction` (field 7): the outcome the leader reported to
+  the BAM node, success or execution failure. BAM does not separate fees
+  only from other failures, so `FEES_ONLY` never appears there. Unset when
+  the node does not report it.
 - README filter recipes: excluding spam accounts, signer filters, an
   instruction by its discriminator or tag, program invoked versus
   mentioned. The example CLI takes `--exclude`, `--signer`,
-  `--exclude-signer`, `--instruction` and `--data-size`.
+  `--exclude-signer`, `--instruction` and `--data-size`, and logs the BAM
+  result.
+
+- `HarmonicTransaction::execution_result` and
+  `BamTransaction::execution_result`: the outcome as an
+  `Option<ExecutionResult>`, `None` when unset or unknown. The generated
+  `result()` returns `Success` for both, so prefer these.
+
+### Changed
+- `execution_results` filters are accepted on the BAM feed. A BAM
+  transaction without a reported outcome never matches them.
+- `HarmonicTransaction.result` is `optional` (same field, same wire
+  encoding): unset when the upstream reported an outcome this schema does
+  not know, instead of passing an unknown number that reads as success.
+  In Rust the field is now `Option<i32>`.
+
+### Fixed
+- proto comments: the signatures inside `transaction` are not always right
+  after a count (v1 carries them after the message); the signature filter
+  matches the first signature; `ExecutionResult` covers both feeds and says
+  an unknown value is not a success.
+
+### Removed
+- `Feed::has_execution_results` and `FilterError::ExecutionResultsUnsupported`:
+  both feeds report outcomes.
 
 ## proto-v0.2.0, client-v0.3.0 - 2026-09-24
 

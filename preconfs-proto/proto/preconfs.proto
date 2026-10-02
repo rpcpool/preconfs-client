@@ -33,8 +33,11 @@ package preconfs;
 // - Sources (regions/nodes) are independent; slot boundaries are ordered per
 //   source, not across sources.
 //
-// Updates carry no signature field: the signature is the first 64 bytes after
-// the length prefix inside `transaction` and would be redundant on the wire.
+// Updates carry no signature field: the signatures are inside `transaction`
+// and would be redundant on the wire. Where they sit depends on the message
+// version (legacy and v0 lead with a signature count and the signatures, v1
+// carries them after the message), so decode `transaction` with a Solana SDK
+// that knows every version rather than reading fixed offsets.
 
 service Harmonic {
   rpc Subscribe(SubscribeRequest) returns (stream HarmonicUpdate);
@@ -118,11 +121,11 @@ message TransactionFilter {
   repeated string account_exclude = 2;
   // Match only if ALL of these accounts are in the transaction's static account keys.
   repeated string account_required = 3;
-  // Match if the transaction signature equals ANY of these (base58).
+  // Match if the transaction's first signature equals ANY of these (base58).
   repeated string signature = 4;
   // Restrict to these execution results; empty means all results. Cannot be
-  // the only constraint. Harmonic only: the BAM upstream does not report
-  // execution outcomes, so setting this on the BAM feed rejects the subscribe.
+  // the only constraint. A transaction without a reported outcome (a BAM
+  // node that does not send one) never matches.
   repeated ExecutionResult execution_results = 5;
   // Match if ANY of these accounts signed the transaction: the first
   // header.num_required_signatures static account keys, fee payer first.
@@ -155,7 +158,11 @@ message Memcmp {
   bytes bytes = 2;
 }
 
-// The committed outcome of a transaction observed by the builder.
+// The committed outcome of a transaction as its feed reports it: the Harmonic
+// builder executes it, a BAM node hears it back from the leader. Outcomes may
+// be added: a value a reader does not know is not a success, so decode with
+// a checked conversion (the Rust crates' execution_result()) and never read
+// an unknown or unset value as the zero value.
 enum ExecutionResult {
   // Loaded and executed cleanly; committed with state applied.
   EXECUTION_RESULT_SUCCESS = 0;
@@ -198,8 +205,9 @@ message HarmonicTransaction {
   bytes transaction = 1;
   // Slot the transaction was preconfirmed in.
   uint64 slot = 2;
-  // Committed outcome observed by the builder.
-  ExecutionResult result = 3;
+  // Committed outcome observed by the builder. Unset when the upstream
+  // reported an outcome this schema does not know.
+  optional ExecutionResult result = 3;
   // Harmonic region the transaction was received from.
   string region = 4;
   // Preconf batch this transaction arrived in. Per the Harmonic team, a batch
@@ -227,10 +235,6 @@ message BamUpdate {
 
 // The BAM upstream schema is still in flux (block framing being added,
 // per-transaction fields being trimmed); expect additions here.
-//
-// BAM does not report execution outcomes: a preconf means the transaction was
-// committed by the leader, not that it succeeded. If BAM adds outcomes, an
-// ExecutionResult field will be added here.
 message BamTransaction {
   // Raw transaction bytes as received from the BAM firehose.
   bytes transaction = 1;
@@ -247,6 +251,11 @@ message BamTransaction {
   uint64 sequence = 5;
   // Execution order within the bundle identified by `sequence`.
   uint32 bundle_position = 6;
+  // Outcome the leader reported to the BAM node. BAM reports success or
+  // failure only, so a transaction that failed, fees charged, is
+  // EXECUTION_RESULT_EXECUTION_FAILURE, whether it failed to execute or to
+  // load; FEES_ONLY never appears. Unset when the node does not report it.
+  optional ExecutionResult result = 7;
 }
 
 // Periodic keepalive so idle streams (never-matching filters, quiet upstream)

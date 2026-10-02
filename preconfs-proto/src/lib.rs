@@ -20,6 +20,27 @@ pub const PROTO_SOURCE: &str = include_str!("../proto/preconfs.proto");
 
 pub use {prost, tonic};
 
+impl preconfs::HarmonicTransaction {
+    /// The builder's outcome; `None` when the server did not know it. Use
+    /// this rather than the generated `result()`, which returns the zero
+    /// value, `Success`, for an unset or unknown outcome.
+    pub fn execution_result(&self) -> Option<preconfs::ExecutionResult> {
+        self.result
+            .and_then(|value| preconfs::ExecutionResult::try_from(value).ok())
+    }
+}
+
+impl preconfs::BamTransaction {
+    /// The outcome the leader reported to the BAM node, success or execution
+    /// failure; `None` when the node did not report one. Use this rather
+    /// than the generated `result()`, which returns `Success` for an unset or
+    /// unknown outcome.
+    pub fn execution_result(&self) -> Option<preconfs::ExecutionResult> {
+        self.result
+            .and_then(|value| preconfs::ExecutionResult::try_from(value).ok())
+    }
+}
+
 /// A name that is not an [`preconfs::ExecutionResult`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnknownExecutionResult(pub String);
@@ -75,5 +96,31 @@ mod tests {
             ExecutionResult::Success
         );
         assert!("landed".parse::<ExecutionResult>().is_err());
+    }
+
+    /// Unset and unknown outcomes are `None`, never the zero value.
+    #[test]
+    fn execution_result_is_checked() {
+        let harmonic = |result| preconfs::HarmonicTransaction {
+            result,
+            ..Default::default()
+        };
+        let bam = |result| preconfs::BamTransaction {
+            result,
+            ..Default::default()
+        };
+        for (value, expected) in [
+            (None, None),
+            (Some(0), Some(ExecutionResult::Success)),
+            (Some(1), Some(ExecutionResult::ExecutionFailure)),
+            (Some(2), Some(ExecutionResult::FeesOnly)),
+            (Some(3), None),
+            (Some(-1), None),
+        ] {
+            assert_eq!(harmonic(value).execution_result(), expected, "{value:?}");
+            assert_eq!(bam(value).execution_result(), expected, "{value:?}");
+        }
+        // The generated accessor is the trap the checked one avoids.
+        assert_eq!(harmonic(Some(3)).result(), ExecutionResult::Success);
     }
 }

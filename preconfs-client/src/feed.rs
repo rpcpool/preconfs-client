@@ -27,12 +27,6 @@ impl Feed {
         }
     }
 
-    /// Whether updates carry an execution result, and so whether
-    /// `execution_results` filters are accepted.
-    pub const fn has_execution_results(self) -> bool {
-        matches!(self, Self::Harmonic)
-    }
-
     /// Region names this feed serves, as accepted by [`Region::parse`].
     pub fn regions(self) -> Vec<&'static str> {
         match self {
