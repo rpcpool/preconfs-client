@@ -81,7 +81,7 @@ exclude.
 
 Limits, checked client side before the request is sent: 64 filters per
 stream, 10000 accounts per list, 1000 signatures per filter, 64 byte
-names, 16 instruction filters per stream, 4 memcmps per instruction
+names, 32 instruction filters per stream, 4 memcmps per instruction
 filter, 128 bytes per memcmp, and a memcmp or data size must fit in 4096
 bytes of instruction data. Every filter must select something; full feed
 subscriptions are refused.
