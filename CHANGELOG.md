@@ -13,6 +13,11 @@ All notable changes to the crates in this repository.
 
 ## Unreleased
 
+## client-v0.4.1 - 2026-10-19
+
+### Changed
+- `MAX_INSTRUCTION_FILTERS` is 32 per stream, up from 16.
+
 ## proto-v0.3.0, client-v0.4.0 - 2026-09-25
 
 ### Added

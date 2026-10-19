@@ -23,7 +23,7 @@ pub const MAX_SIGNATURES_PER_FILTER: usize = 1_000;
 pub const MAX_FILTER_NAME_BYTES: usize = 64;
 /// Instruction filters per stream, summed over all its filters: the limit is
 /// on the stream, not on one filter.
-pub const MAX_INSTRUCTION_FILTERS: usize = 16;
+pub const MAX_INSTRUCTION_FILTERS: usize = 32;
 /// Memcmps per instruction filter, as getProgramAccounts allows four filters.
 pub const MAX_MEMCMPS_PER_INSTRUCTION: usize = 4;
 /// Bytes per memcmp, the getProgramAccounts limit.
